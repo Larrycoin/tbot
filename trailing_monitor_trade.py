@@ -81,6 +81,8 @@ def main():
     trailing = False
     df = None
     prev_trail = trail = None
+    trail_order = None
+    prev_tick = None
 
     ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                  'V': 'sum', 'BV': 'sum'}
@@ -108,16 +110,17 @@ def main():
                     df = json_normalize(candles)
                     df['T'] = pd.to_datetime(df['T'])
                     df = df.set_index('T')
-                    prev_tick = tick
                 if tick != prev_tick:
+                    prev_tick = tick
                     frame = pd.DataFrame(tick, index=[tick['T']])
                     df = pd.concat([df, frame])
                     ndf = df.resample('1H').apply(ohlc_dict)
                     ATR_STP(ndf)
-                    trail = ndf.tail()['ATR_STP'].values[-1]
+                    trail = max(ndf.tail()['ATR_STP'].values[-1], entry)
                     if trail != prev_trail:
-                        order = send_order(order, exch, exch.sell_stop,
-                                           market, quantity / 2, trail)
+                        trail_order = send_order(trail_order, exch,
+                                                 exch.sell_stop,
+                                                 market, quantity / 2, trail)
                         prev_trail = trail
                     del ndf
             elif trend != 'up':
