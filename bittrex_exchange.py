@@ -86,6 +86,12 @@ class BittrexExchange(Exchange):
         return req['result'][0]
 
     @bittrex_retry()
+    def get_candles(self, pair, duration):
+        req = self.conn.get_candles(pair, duration)
+        self._validate_req(req, 'Unable to get candles')
+        return req['result']
+
+    @bittrex_retry()
     def get_open_orders(self, pair):
         req = self.conn.get_open_orders(pair)
         self._validate_req(req, 'Unable to get open orders')

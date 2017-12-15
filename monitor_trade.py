@@ -7,10 +7,6 @@ import sys
 from bittrex_exchange import BittrexExchange
 
 
-def get_orders(conn, market):
-    return conn.get_open_orders(market)
-
-
 def send_order(order, exch, func, *args, **kwargs):
     if order and exch.cancel_order(order):
         order = None
@@ -41,59 +37,34 @@ def convert(s):
     return val
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-b', "--buy", help='run a buy order',
-                        action="store_true")
-    parser.add_argument(
-        '-r', "--range",
-        help='floating number to compute buy range. Default 0.09.',
-        type=float, default=0.09)
-    parser.add_argument('market', help='name of the market like BTC-ETH')
-    parser.add_argument('quantity', help='quantity of coins', type=float)
-    parser.add_argument('stop', help='stop level')
-    parser.add_argument('entry', help='entry level')
-    parser.add_argument('exit', help='exit level')
-    args = parser.parse_args()
-
-    market = args.market
-    quantity = args.quantity
-    stop = convert(args.stop)
-    entry = convert(args.entry)
-    exit = convert(args.exit)
-
+def buy_pair(exch, market, stop, entry, quantity, limit_range):
     currency = market.split('-')[1]
+    orders = exch.get_open_orders(market)
+    if len(orders) != 0:
+        for order in orders:
+            if order.is_buy_order():
+                print('There is already a buy order. Aborting.')
+                print(order.data)
+                sys.exit(1)
+    position = exch.get_position(currency)
+    if position and position['Balance'] > 0:
+        print('There is already a position on %s (%f). Not buying.' %
+              (currency, position['Balance']))
+        print(position)
+    else:
+        val_max = entry + (entry - stop) * limit_range
+        buy_order = exch.buy_limit_range(market, quantity, entry, val_max)
+        print(buy_order.data)
+        while True:
+            orders = exch.get_open_orders(market)
+            if len(orders) > 0 and orders[0].is_buy_order():
+                break
+            print('Waiting for the buy order to become visible')
+            time.sleep(5)
 
-    exch = BittrexExchange(True)
 
-    # Buy order if needed
-
-    if args.buy:
-        orders = exch.get_open_orders(market)
-        if len(orders) != 0:
-            for order in orders:
-                if order.is_buy_order():
-                    print('There is already a buy order. Aborting.')
-                    print(order.data)
-                    sys.exit(1)
-        position = exch.get_position(currency)
-        if position and position['Balance'] > 0:
-            print('There is already a position on %s (%f). Not buying.' %
-                  (currency, position['Balance']))
-            print(position)
-        else:
-            val_max = entry + (entry - stop) * args.range
-            buy_order = exch.buy_limit_range(market, quantity, entry, val_max)
-            print(buy_order.data)
-            while True:
-                orders = exch.get_open_orders(market)
-                if len(orders) > 0 and orders[0].is_buy_order():
-                    break
-                print('Waiting for the buy order to become visible')
-                time.sleep(5)
-
-    # Do some sanity checks
-
+def sanity_checks(exch, market, quantity, stop):
+    currency = market.split('-')[1]
     while True:
         position = exch.get_position(currency)
         if position and position['Balance'] >= quantity:
@@ -121,8 +92,8 @@ def main():
                   (quantity))
         time.sleep(60)
 
-    # Check if we have an open order
 
+def get_trend(exch, market):
     orders = exch.get_open_orders(market)
 
     if len(orders) > 0:
@@ -137,6 +108,41 @@ def main():
     else:
         trend = 'none'
         order = None
+    return (trend, order)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', "--buy", help='run a buy order',
+                        action="store_true")
+    parser.add_argument(
+        '-r', "--range",
+        help='floating number to compute buy range. Default 0.09.',
+        type=float, default=0.09)
+    parser.add_argument('market', help='name of the market like BTC-ETH')
+    parser.add_argument('quantity', help='quantity of coins', type=float)
+    parser.add_argument('stop', help='stop level')
+    parser.add_argument('entry', help='entry level')
+    parser.add_argument('exit', help='exit level')
+    args = parser.parse_args()
+
+    market = args.market
+    quantity = args.quantity
+    stop = convert(args.stop)
+    entry = convert(args.entry)
+    exit = convert(args.exit)
+
+    exch = BittrexExchange(True)
+
+    # Buy order if needed
+    if args.buy:
+        buy_pair(exch, market, stop, entry, quantity, args.range)
+
+    # Do some sanity checks
+    sanity_checks(exch, market, quantity, stop)
+
+    # Get trend (up, down or none) and the open order if it exists
+    trend, order = get_trend(exch, market)
 
     print(trend)
 
@@ -146,7 +152,7 @@ def main():
         # TODO(fl): need to abstract tick
         last = tick['C']
         if last < entry:
-            if last < stop and monitor_order_completion(exch, market):
+            if tick['L'] < stop and monitor_order_completion(exch, market):
                 break
             elif trend != 'down':
                 print('down')
@@ -154,7 +160,7 @@ def main():
                                    market, quantity, stop)
                 trend = 'down'
         else:
-            if last > exit and monitor_order_completion(exch, market):
+            if tick['H'] > exit and monitor_order_completion(exch, market):
                 break
             elif trend != 'up':
                 print('up')
