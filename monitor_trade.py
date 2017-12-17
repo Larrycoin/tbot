@@ -48,7 +48,7 @@ def buy_pair(exch, market, stop, entry, quantity, limit_range):
                 sys.exit(1)
     position = exch.get_position(currency)
     if position and position['Balance'] > 0:
-        print('There is already a position on %s (%f). Not buying.' %
+        print('There is already a position on %s (%.3f). Not buying.' %
               (currency, position['Balance']))
         print(position)
     else:
@@ -69,26 +69,35 @@ def sanity_checks(exch, market, quantity, stop):
         position = exch.get_position(currency)
         if position and position['Balance'] >= quantity:
             break
-        orders = exch.get_open_orders(market)
-        if len(orders) == 0 or not orders[0].is_buy_order():
-            print('no buy order for %s' % market)
-            print([order.data for order in orders])
-            sys.exit(1)
+        tries = 5
+        while True:
+            orders = exch.get_open_orders(market)
+            if len(orders) == 0 or not orders[0].is_buy_order():
+                print('no buy order for %s' % market)
+                tries -= 1
+                if tries == 0:
+                    print('Giving up')
+                    sys.exit(1)
+                else:
+                    print('retrying (%d left)' % tries)
+                    time.sleep(5)
+            else:
+                break
         tick = exch.get_tick(market)
         if tick and tick['L'] < stop:
             print(market,
-                  'Trade invalidated (low price %f), cancelling order' %
+                  'Trade invalidated (low price %.8f), cancelling order' %
                   tick['L'])
             exch.cancel_order(orders[0])
             sys.exit(0)
         if position:
             print(market,
-                  'Not the correct balance: %.2f instead of more than %.2f' %
+                  'Not the correct balance: %.3f instead of more than %.3f' %
                   (position['Balance'], quantity))
         else:
             print(market,
                   'Not the correct balance: no position '
-                  'instead of more than %.2f' %
+                  'instead of more than %.3f' %
                   (quantity))
         time.sleep(60)
 

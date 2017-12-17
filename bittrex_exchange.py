@@ -109,6 +109,15 @@ class BittrexExchange(Exchange):
     def cancel_order(self, order):
         req = self.conn.cancel(order.id)
         self._validate_req(req, 'Unable to cancel order')
+        while True:
+            req = self.conn.get_order(order.id)
+            self._validate_req(req,
+                               'Unable to get status of the canceled order')
+            print(req)
+            if (('status' in req and req['status'] is None) or
+                ('result' in req and 'IsOpen' in req['result'] and
+                 req['result']['IsOpen'] is False)):
+                break
         return True
 
     @bittrex_retry()
