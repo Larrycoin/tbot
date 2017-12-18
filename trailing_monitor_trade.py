@@ -69,8 +69,6 @@ def compute_stop(entry, risk, df, period):
         ndf = df.resample(str(period) + 'T').apply(ohlc_dict)
         last_row = ndf.iloc[-1]
         prev_row = ndf.iloc[-2]
-        print('prev', prev_row.values)
-        print('curr', last_row.values)
         # Conditions for not down sampling:
         # - not a green candle
         # - not a candle higher than previous candle
@@ -100,6 +98,8 @@ def main():
         '-r', "--range",
         help='floating number to compute buy range. Default 0.09.',
         type=float, default=0.09)
+    parser.add_argument('-t', "--trailing", help='force trailing mode',
+                        action="store_true")
     parser.add_argument('market', help='name of the market like BTC-ETH')
     parser.add_argument('quantity', help='quantity of coins', type=float)
     parser.add_argument('stop', help='stop level')
@@ -129,12 +129,16 @@ def main():
 
     print(trend)
 
-    trailing = False
     df = None
     prev_trail = trail = None
-    trail_order = None
     prev_tick = None
     period = 60
+
+    trailing = args.trailing
+    if trailing:
+        trail_order = order
+    else:
+        trail_order = None
 
     while True:
         tick = exch.get_tick(market)
