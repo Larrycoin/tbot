@@ -64,7 +64,7 @@ def init_dataframes(exch, market):
 def compute_stop(entry, risk, df, period):
     ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                  'V': 'sum', 'BV': 'sum'}
-    down = {60: 30, 30: 15, 15: 10, 10: 5, 5: 3, 3: 1}
+    down = {60: 30, 30: 15}
     while True:
         ndf = df.resample(str(period) + 'T').apply(ohlc_dict)
         last_row = ndf.iloc[-1]
@@ -82,7 +82,7 @@ def compute_stop(entry, risk, df, period):
             period = down[period]
             print('Downsampling to %d mn risk=%.8f size=%.8f' %
                   (period, risk, last_row['H'] - last_row['L']))
-        if period == 1:
+        if period == 15:
             break
     ATR_STP(ndf)
     trail = max(ndf.tail()['ATR_STP'].values[-1], entry)
