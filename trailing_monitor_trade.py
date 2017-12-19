@@ -61,10 +61,12 @@ def init_dataframes(exch, market):
     return df
 
 
+DOWN = {60: 30, 30: 15, 15: 15}
+
+
 def compute_stop(entry, risk, df, period):
     ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                  'V': 'sum', 'BV': 'sum'}
-    down = {60: 30, 30: 15}
     while True:
         ndf = df.resample(str(period) + 'T').apply(ohlc_dict)
         last_row = ndf.iloc[-1]
@@ -79,7 +81,7 @@ def compute_stop(entry, risk, df, period):
            (last_row['H'] - last_row['L']) < risk):
             break
         else:
-            period = down[period]
+            period = DOWN[period]
             print('Downsampling to %d mn risk=%.8f size=%.8f' %
                   (period, risk, last_row['H'] - last_row['L']))
         if period == 15:
@@ -100,6 +102,12 @@ def main():
         type=float, default=0.09)
     parser.add_argument('-t', "--trailing", help='force trailing mode',
                         action="store_true")
+    parser.add_argument(
+        '-p', "--period",
+        help='initial period to check acceleration in trailing mode.'
+        ' Default 60.',
+        choices=DOWN.keys(),
+        type=int, default=60)
     parser.add_argument('market', help='name of the market like BTC-ETH')
     parser.add_argument('quantity', help='quantity of coins', type=float)
     parser.add_argument('stop', help='stop level')
@@ -132,7 +140,7 @@ def main():
     df = None
     prev_trail = trail = None
     prev_tick = None
-    period = 60
+    period = args.period
 
     trailing = args.trailing
     if trailing:
