@@ -99,7 +99,7 @@ class BittrexExchange(Exchange):
                 for data in req['result']]
 
     @bittrex_retry()
-    def get_order_history(self, pair):
+    def get_order_history(self, pair=None):
         req = self.conn.get_order_history(pair)
         self._validate_req(req, 'Unable to get order history')
         return [BittrexOrder(data, id=data['OrderUuid'])
