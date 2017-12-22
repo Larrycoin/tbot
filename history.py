@@ -1,24 +1,33 @@
 #!/usr/bin/env python
 
 from bittrex_exchange import BittrexExchange
+import sys
 
-# API call allows an optional parameter: market,
-# but this parameter has no impact on the output
-# so, all histrical orders will be displayed without parameter in this version.
+
+def display_orders(orders):
+    for order in orders:
+        if order.data['Condition'] != 'NONE':
+            print('%s %s(%.3f) %s(%.8f) %s(%2.8f) => %.8f x %.3f = %.8f' %
+                  (order.data['Closed'], order.data['Exchange'],
+                   order.data['Quantity'], order.data['OrderType'],
+                   order.data['Limit'], order.data['Condition'],
+                   order.data['ConditionTarget'], order.data['PricePerUnit'],
+                   order.data['Quantity'], order.data['Price']))
+        else:
+            print('%s %s(%.3f) %s(%.8f) => %.8f x %.3f = %.8f' %
+                  (order.data['Closed'], order.data['Exchange'],
+                   order.data['Quantity'], order.data['OrderType'],
+                   order.data['Limit'], order.data['PricePerUnit'],
+                   order.data['Quantity'], order.data['Price']))
+
 
 exch = BittrexExchange(True)
-orders = exch.get_order_history('None')
-for order in orders:
-    if order.data['Condition'] != 'NONE':
-        print('%s %s (%2.1f) %s(%2.8f) %s(%2.8f) Price:%2.8f Fees:%2.8f' %
-              (order.data['Exchange'], order.data['TimeStamp'],
-               order.data['Quantity'], order.data['OrderType'],
-               order.data['Limit'], order.data['Condition'],
-               order.data['ConditionTarget'], order.data['PricePerUnit'],
-               order.data['Commission']))
-    else:
-        print('%s %s (%2.1f) %s(%2.8f) Price:%2.8f Fees:%2.8f' %
-              (order.data['Exchange'], order.data['TimeStamp'],
-               order.data['Quantity'], order.data['OrderType'],
-               order.data['Limit'], order.data['PricePerUnit'],
-               order.data['Commission']))
+
+if len(sys.argv) > 1:
+    for market in sys.argv[1:]:
+        orders = exch.get_order_history(market)
+        display_orders(orders)
+else:
+    orders = exch.get_order_history()
+    display_orders(orders)
+
