@@ -10,6 +10,7 @@ from bittrex.bittrex import Bittrex
 
 from exchange import Exchange
 from exchange import Order
+from trading_plan import btc2str
 
 # Settings for retry
 MAX_DELAY = 30
@@ -140,7 +141,8 @@ class BittrexExchange(Exchange):
             if msg:
                 print('%s: %s' % (msg, req.get('message', '<no message>')))
             if do_raise:
-                if req.get('message', None) in ('NO_API_RESPONSE',):
+                if req.get('message', None) in ('NO_API_RESPONSE',
+                                                'APIKEY_INVALID'):
                     raise BittrexRetryableError(req['message'])
                 else:
                     raise BittrexError(req.get('message', '<no message>'))
@@ -159,5 +161,29 @@ class BittrexOrder(Order):
 
     def is_buy_order(self):
         return self.data['OrderType'] == 'LIMIT_BUY'
+
+    def __str__(self):
+        d = self.data
+        quantity = d['Quantity']
+        price = btc2str(d['Limit'])
+        if d['OrderType'] == 'LIMIT_BUY':
+            if d['IsConditional']:
+                return('BUY STPLMT %.3f %s @ %s-%s' %
+                       (quantity, d['Exchange'],
+                        btc2str(d['ConditionTarget']),
+                        price))
+            else:
+                return('BUY LMT %.3f %s @ %s' %
+                       (quantity, d['Exchange'],
+                        price))
+        else:
+            if d['IsConditional']:
+                order_type = 'STP'
+                price = btc2str(d['ConditionTarget'])
+            else:
+                order_type = 'LMT'
+                price = btc2str(d['Limit'])
+            return 'SELL %s %.3f %s @ %s' % (order_type, quantity,
+                                             d['Exchange'], price)
 
 # BittrexExchange.py ends here
