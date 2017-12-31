@@ -21,20 +21,21 @@ class TradingPlan(object):
         self.exch = exch
         self.pair = pair
         self.args = args
+        self.currency = self.pair.split('-')[1]
         self.update_open_orders()
         for order in self.open_orders:
             print(order)
         self.update_position()
-        print('Balance = %.3f Available = %.3f' % (self.balance,
-                                                   self.available))
+        self.log(None, 'Balance = %.3f Available = %.3f' % (self.balance,
+                                                            self.available))
 
     def update_position(self):
-        position = self.exch.get_position(self.pair.split('-')[1])
-        if 'Balance' in position:
+        position = self.exch.get_position(self.currency)
+        if position and 'Balance' in position:
             self.balance = position['Balance']
         else:
             self.balance = 0
-        if 'Available' in position:
+        if position and 'Available' in position:
             self.available = position['Available']
         else:
             self.available = 0
@@ -46,11 +47,16 @@ class TradingPlan(object):
         else:
             self.order = None
 
+    def log(self, tick, msg):
+        if tick:
+            print('%s %s %s' % (tick['T'][11:], self.pair, msg))
+        else:
+            print('%s %s' % (self.pair, msg))
+
     def process_tick(self, tick):
-        print('%s %s %s %s-%s' % (tick['T'][11:], self.pair,
-                                  btc2str(tick['C']),
-                                  btc2str(tick['L']),
-                                  btc2str(tick['H'])))
+        self.log(tick, '%s %s-%s' % (btc2str(tick['C']),
+                                     btc2str(tick['L']),
+                                     btc2str(tick['H'])))
         return True
 
     def sell_limit(self, quantity, limit_price):
@@ -72,18 +78,57 @@ class TradingPlan(object):
             self.order = None
         new_order = func(*args, **kwargs)
         if new_order:
-            print(new_order)
             self.order = new_order
         return self.order
 
     def monitor_order_completion(self, msg):
         self.update_open_orders()
         if self.order is None:
-            print(msg + 'order completed')
+            self.log(None, msg + 'order completed')
             return True
         else:
-            print(msg + 'order still in place')
+            self.log(None, msg + 'order still in place')
             return False
+
+    def do_buy_order(self, stop, price, limit_range=0.09):
+        if self.order:
+            self.log(None,
+                     'There is already an order. Aborting.')
+            print(self.order)
+            return False
+        if self.balance > 0:
+            self.log(None,
+                     'There is already a position on %s (%.3f). Not buying.' %
+                     (self.currency, self.balance))
+            return False
+        else:
+            self.buy_range(self.quantity, price,
+                           price + (price - stop) * limit_range)
+            self.update_open_orders()
+            return self.order
+
+    def do_cancel_order(self):
+        self.exch.cancel_order(self.order)
+
+    def process_tick_bying(self, tick, stop, quantity):
+        if not (self.order and self.order.is_buy_order()):
+            self.log(tick, 'Waiting for the buy order to become visible')
+            self.update_open_orders()
+        else:
+            if tick['L'] < stop:
+                self.log(tick, 'Trade invalidated (low price %.8f < %.8f), '
+                         'cancelling order' %
+                         tick['L'], self.stop_price)
+                self.do_cancel()
+                return False
+            self.update_position()
+            if self.balance >= quantity:
+                self.status = 'unknown'
+            else:
+                self.log(tick, 'Not the correct balance: %.3f instead of '
+                         'more than %.3f' %
+                         (self.balance, quantity))
+        return True
 
 
 trading_plan_class = TradingPlan

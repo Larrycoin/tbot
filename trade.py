@@ -51,7 +51,7 @@ def main_loop(exch, pair, trading_plan, ticks):
     prev_tick = None
     while True:
         tick = exch.get_tick(pair)
-        if tick != prev_tick:
+        if tick and tick != prev_tick:
             if not trading_plan.process_tick(tick):
                 break
             prev_tick = tick
