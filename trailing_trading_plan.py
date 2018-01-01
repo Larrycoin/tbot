@@ -11,6 +11,9 @@ from trading_plan import str2btc
 from trading_plan import TradingPlan
 
 
+TEN8 = 100000000
+
+
 def MA(df, n, price='C', name=None):
     """
     Moving Average
@@ -183,6 +186,7 @@ class TrailingTradingPlan(TradingPlan):
                 break
         ATR_STP(ndf)
         trail_price = max(ndf.tail()['ATR_STP'].values[-1], self.entry_price)
+        trail_price = int(trail_price * TEN8) / TEN8
         del ndf
         return trail_price
 
