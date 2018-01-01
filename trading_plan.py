@@ -25,6 +25,7 @@ class TradingPlan(object):
         self.pair = pair
         self.args = args
         self.currency = self.pair.split('-')[1]
+        self.sent_order = False
         self.update_open_orders()
         for order in self.open_orders:
             print(order)
@@ -47,6 +48,7 @@ class TradingPlan(object):
         self.open_orders = self.exch.get_open_orders(self.pair)
         if len(self.open_orders) > 0:
             self.order = self.open_orders[0]
+            self.sent_order = False
         else:
             self.order = None
 
@@ -83,9 +85,10 @@ class TradingPlan(object):
         if self.order:
             self.do_cancel_order()
         new_order = func(*args, **kwargs)
+        self.sent_order = True
         self.update_open_orders()
-        print('New order: %s' % self.order)
-        return self.order
+        if self.order:
+            print('New order: %s' % self.order)
 
     def monitor_order_completion(self, msg):
         self.update_open_orders()
@@ -119,6 +122,7 @@ class TradingPlan(object):
         self.order = None
 
     def process_tick_bying(self, tick, stop, quantity):
+        self.check_order()
         if (self.balance < quantity and
            not (self.order and self.order.is_buy_order())):
             self.log(tick, 'Waiting for the buy order to become visible')
@@ -128,7 +132,7 @@ class TradingPlan(object):
                 self.log(tick, 'Trade invalidated (low price %.8f < %.8f), '
                          'cancelling order' %
                          (tick['L'], self.stop_price))
-                self.do_cancel()
+                self.do_cancel_order()
                 return False
             self.update_position()
             if self.balance >= quantity:
@@ -139,6 +143,11 @@ class TradingPlan(object):
                          (self.balance, quantity))
         return True
 
+    def check_order(self):
+        if self.sent_order:
+            self.update_open_orders()
+            if not self.sent_order and self.order:
+                print(self.order)
 
 trading_plan_class = TradingPlan
 

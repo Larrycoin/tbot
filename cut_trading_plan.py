@@ -28,6 +28,7 @@ class CutTradingPlan(TradingPlan):
         self.status = 'unknown'
 
     def process_tick(self, tick):
+        self.check_order()
         last = tick['C']
         if last < self.middle_price:
             if (tick['L'] < self.stop_price and
@@ -43,11 +44,10 @@ class CutTradingPlan(TradingPlan):
             elif self.status != 'up':
                 self.sell_limit(self.quantity, self.limit_price)
                 self.status = 'up'
-        print('%s %s %s %s %s-%s' % (tick['T'][11:],
-                                     self.pair, self.status,
-                                     btc2str(tick['C']),
-                                     btc2str(tick['L']),
-                                     btc2str(tick['H'])))
+        self.log('%s %s %s-%s' % (self.status,
+                                  btc2str(tick['C']),
+                                  btc2str(tick['L']),
+                                  btc2str(tick['H'])))
         return True
 
 

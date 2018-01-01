@@ -100,6 +100,7 @@ class TrailingTradingPlan(TradingPlan):
             return self.process_tick_position(tick)
 
     def process_tick_position(self, tick):
+        self.check_order()
         last = tick['C']
         if last < self.entry_price:
             if (tick['L'] < self.stop_price and
