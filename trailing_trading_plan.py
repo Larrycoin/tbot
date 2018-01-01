@@ -69,6 +69,7 @@ class TrailingTradingPlan(TradingPlan):
 
         self.stop_price = str2btc(args[1])
         self.entry_price = str2btc(args[2])
+        self.target_price = str2btc(args[3])
         self.trail_price = None
         self.trailing = False
         self.df = None
@@ -123,20 +124,30 @@ class TrailingTradingPlan(TradingPlan):
                 trail_price = self.compute_stop()
 
                 if trail_price != self.trail_price:
+                    self.log(tick, 'new trailing stop %s (prev %s) (period %d mn)' %
+                             (btc2str(trail_price), btc2str(self.trail_price),
+                              self.period))
                     self.trail_price = trail_price
-                    self.log(tick, 'new trailing stop %.8f (period %d mn)' %
-                             (self.trail_price, self.period))
                     self.sell_stop(self.quantity / 2, self.trail_price)
             elif self.status != 'up':
                 self.sell_limit(self.quantity / 2, self.target_price)
                 self.status = 'up'
         self.log(tick, '%s %s %s-%s' %
-                 ('trailing(%s)' % btc2str(self.trail_price) if self.trailing
-                  else self.status,
+                 (self.status2str(),
                   btc2str(tick['C']),
                   btc2str(tick['L']),
                   btc2str(tick['H'])))
         return True
+
+    def status2str(self):
+        if self.trailing:
+            return 'trailing(%s)' % btc2str(self.trail_price)
+        elif self.status == 'down':
+            return 'down(%s)' % btc2str(self.stop_price)
+        elif self.status == 'up':
+            return 'up(%s)' % btc2str(self.target_price)
+        else:
+            return self.status
 
     def init_dataframes(self):
         candles = self.exch.get_candles(self.pair, 'oneMin')
@@ -168,7 +179,7 @@ class TrailingTradingPlan(TradingPlan):
                 self.period = DOWN[self.period]
                 self.log(None, 'Downsampling to %d mn risk=%.8f size=%.8f' %
                          (self.period, risk, last_row['H'] - last_row['L']))
-            if self.period == 15:
+            if self.period == 30:
                 break
         ATR_STP(ndf)
         trail_price = max(ndf.tail()['ATR_STP'].values[-1], self.entry_price)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import importlib
 import gzip
 import json
@@ -52,10 +53,10 @@ def main_loop(exch, pair, trading_plan, ticks):
     while True:
         tick = exch.get_tick(pair)
         if tick and tick != prev_tick:
-            if not trading_plan.process_tick(tick):
-                break
             prev_tick = tick
             ticks.append(tick)
+            if not trading_plan.process_tick(copy.deepcopy(tick)):
+                break
         time.sleep(30)
 
 

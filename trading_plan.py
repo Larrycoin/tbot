@@ -3,7 +3,10 @@
 
 
 def btc2str(val):
-    return '%.2fS' % (val * 1000000)
+    if val:
+        return '%.2fS' % (val * 1000000)
+    else:
+        return val
 
 
 def str2btc(s):
@@ -49,7 +52,10 @@ class TradingPlan(object):
 
     def log(self, tick, msg):
         if tick:
-            print('%s %s %s' % (tick['T'][11:], self.pair, msg))
+            if isinstance(tick['T'], str):
+                print('%s %s %s' % (tick['T'][11:], self.pair, msg))
+            else:
+                print('%s %s %s' % (tick['T'].strftime('%H:%M:%S'), self.pair, msg))
         else:
             print('%s %s' % (self.pair, msg))
 
@@ -74,11 +80,11 @@ class TradingPlan(object):
                         quantity, entry, val_max)
 
     def send_order(self, func, *args, **kwargs):
-        if self.order and self.exch.cancel_order(self.order):
-            self.order = None
+        if self.order:
+            self.do_cancel_order()
         new_order = func(*args, **kwargs)
-        if new_order:
-            self.order = new_order
+        self.update_open_orders()
+        print('New order: %s' % self.order)
         return self.order
 
     def monitor_order_completion(self, msg):
@@ -105,20 +111,23 @@ class TradingPlan(object):
             self.buy_range(self.quantity, price,
                            price + (price - stop) * limit_range)
             self.update_open_orders()
-            return self.order
+            return True
 
     def do_cancel_order(self):
         self.exch.cancel_order(self.order)
+        print('Canceled order: %s' % self.order)
+        self.order = None
 
     def process_tick_bying(self, tick, stop, quantity):
-        if not (self.order and self.order.is_buy_order()):
+        if (self.balance < quantity and
+           not (self.order and self.order.is_buy_order())):
             self.log(tick, 'Waiting for the buy order to become visible')
             self.update_open_orders()
         else:
             if tick['L'] < stop:
                 self.log(tick, 'Trade invalidated (low price %.8f < %.8f), '
                          'cancelling order' %
-                         tick['L'], self.stop_price)
+                         (tick['L'], self.stop_price))
                 self.do_cancel()
                 return False
             self.update_position()
