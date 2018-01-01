@@ -55,9 +55,9 @@ class TradingPlan(object):
     def log(self, tick, msg):
         if tick:
             if isinstance(tick['T'], str):
-                print('%s %s %s' % (tick['T'][11:], self.pair, msg))
+                print('%s %s %s' % (tick['T'][11:-3], self.pair, msg))
             else:
-                print('%s %s %s' % (tick['T'].strftime('%H:%M:%S'), self.pair, msg))
+                print('%s %s %s' % (tick['T'].strftime('%H:%M'), self.pair, msg))
         else:
             print('%s %s' % (self.pair, msg))
 
