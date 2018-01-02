@@ -9,22 +9,25 @@ from trading_plan import TradingPlan
 
 
 class CutTradingPlan(TradingPlan):
-    def __init__(self, exch, pair, args):
+    def __init__(self, exch, name, args, buy):
         if len(args) != 3:
-            print('Usage: cut_trading_plan <pair> ALL|<quantity> '
-                  '<stop price> <limit price>')
+            print('Usage: trade.py %s <pair> ALL|<quantity> '
+                  '<stop price> <limit price>' % name)
             sys.exit(1)
-        super().__init__(exch, pair, args)
-        self.stop_price = str2btc(args[1])
-        self.limit_price = str2btc(args[2])
+        if buy:
+            print('%s: no buy option in this trading plan.' % name)
+            sys.exit(1)
+        super().__init__(exch, name, args, buy)
+        self.stop_price = str2btc(args[2])
+        self.limit_price = str2btc(args[3])
         self.middle_price = (self.stop_price + self.limit_price) / 2
-        if args[0] == 'ALL':
+        if args[1] == 'ALL':
             if self.balance == 0:
                 print('ALL specified and no existing position. Aborting.')
                 sys.exit(1)
             self.quantity = self.balance
         else:
-            self.quantity = float(args[0])
+            self.quantity = float(args[1])
         self.status = 'unknown'
 
     def process_tick(self, tick):

@@ -57,35 +57,33 @@ def ATR_STP(df, name=None):
 
 
 class TrailingTradingPlan(TradingPlan):
-    def __init__(self, exch, pair, args):
+    def __init__(self, exch, name, args, buy):
         if len(args) not in (4, 5):
-            print('Usage: trailing_trading_plan <pair> [-b] ALL|<quantity> '
+            print(args)
+            print('Usage: trade.py [-b] %s <pair> '
+                  'ALL|<quantity> '
                   '<stop price> <entry price> '
-                  '<target price>')
+                  '<target price>' % name)
             sys.exit(1)
-        super().__init__(exch, pair, args)
+        super().__init__(exch, name, args, buy)
 
-        self.buy = (args[0] == '-b')
-
-        if self.buy:
-            args = args[1:]
-
-        self.stop_price = str2btc(args[1])
-        self.entry_price = str2btc(args[2])
-        self.target_price = str2btc(args[3])
+        print('Bying %s' % self.buy)
+        self.stop_price = str2btc(args[2])
+        self.entry_price = str2btc(args[3])
+        self.target_price = str2btc(args[4])
         self.trail_price = None
         self.trailing = False
         self.df = None
         self.period = 60
 
-        if args[0] == 'ALL':
+        if args[1] == 'ALL':
             if self.balance == 0:
                 self.log(None,
                          'ALL specified and no existing position. Aborting.')
                 sys.exit(1)
             self.quantity = self.balance
         else:
-            self.quantity = float(args[0])
+            self.quantity = float(args[1])
 
         if self.buy:
             if not self.do_buy_order(self.stop_price, self.entry_price):

@@ -18,12 +18,18 @@ def load_trading_plan_class(module_name):
 
 def main():
     if len(sys.argv) < 3:
-        print('Usage: %s <trading plan> <pair> [<args>]' % sys.argv[0])
+        print('Usage: %s <trading plan> [-b] <pair> [<args>]' % sys.argv[0])
         sys.exit(1)
     trading_plan_class = load_trading_plan_class(sys.argv[1])
+    buy = (sys.argv[2] == '-b')
+    if buy:
+        args = sys.argv[3:]
+    else:
+        args = sys.argv[2:]
+    print(args)
     exch = BittrexExchange(True)
-    pair = sys.argv[2]
-    trading_plan = trading_plan_class(exch, pair, sys.argv[3:])
+    pair = args[0]
+    trading_plan = trading_plan_class(exch, sys.argv[1], args, buy)
     ticks = []
 
     try:

@@ -20,10 +20,13 @@ def str2btc(s):
 
 
 class TradingPlan(object):
-    def __init__(self, exch, pair, args):
+    def __init__(self, exch, name, args, buy):
         self.exch = exch
-        self.pair = pair
-        self.args = args
+        self.name = name
+        self.buy = buy
+        print(args)
+        self.pair = args[0]
+        self.args = args[1:]
         self.currency = self.pair.split('-')[1]
         self.sent_order = False
         self.update_open_orders()
