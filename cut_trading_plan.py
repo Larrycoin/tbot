@@ -44,10 +44,10 @@ class CutTradingPlan(TradingPlan):
             elif self.status != 'up':
                 self.sell_limit(self.quantity, self.limit_price)
                 self.status = 'up'
-        self.log('%s %s %s-%s' % (self.status,
-                                  btc2str(tick['C']),
-                                  btc2str(tick['L']),
-                                  btc2str(tick['H'])))
+        self.log(tick, '%s %s %s-%s' % (self.status,
+                                        btc2str(tick['C']),
+                                        btc2str(tick['L']),
+                                        btc2str(tick['H'])))
         return True
 
 
