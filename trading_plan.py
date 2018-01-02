@@ -84,7 +84,9 @@ class TradingPlan(object):
     def send_order(self, func, *args, **kwargs):
         if self.order:
             self.do_cancel_order()
-        new_order = func(*args, **kwargs)
+        else:
+            print('no order to cancel')
+        func(*args, **kwargs)
         self.sent_order = True
         self.update_open_orders()
         if self.order:
@@ -137,6 +139,9 @@ class TradingPlan(object):
             self.update_position()
             if self.balance >= quantity:
                 self.status = 'unknown'
+                if self.order and self.order.is_buy_order():
+                    self.order = None
+                    self.sent_order = False
             else:
                 self.log(tick, 'Not the correct balance: %.3f instead of '
                          'more than %.3f' %
