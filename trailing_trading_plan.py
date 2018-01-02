@@ -111,6 +111,9 @@ class TrailingTradingPlan(TradingPlan):
                 self.status = 'down'
         else:
             if self.trailing or tick['H'] > self.target_price:
+                if not self.trailing:
+                    if not self.monitor_order_completion('Target reached: '):
+                        return True
                 self.trailing = True
                 tick['T'] = pd.to_datetime(tick['T'])
 
@@ -165,19 +168,18 @@ class TrailingTradingPlan(TradingPlan):
                      'V': 'sum', 'BV': 'sum'}
         DOWN = {60: 30, 30: 15, 15: 15}
         risk = self.entry_price - self.stop_price
+        self.period = 60
 
         while True:
             ndf = self.df.resample(str(self.period) + 'T').apply(ohlc_dict)
             last_row = ndf.iloc[-1]
             prev_row = ndf.iloc[-2]
-            # Conditions for not down sampling:
-            # - not a green candle
-            # - not a candle higher than previous candle
-            # - acceleration below risk
-            if ((last_row['C'] < last_row['O']) or
-               (prev_row['H'] > last_row['H']) or
-               (prev_row['C'] > last_row['C']) or
-               (last_row['H'] - last_row['L']) < risk):
+            last = ndf.tail(4)
+            high = last['H'].max()
+            low = last['L'].min()
+
+            # Climax Run test
+            if ((high - low) < (3.5 * risk)):
                 break
             else:
                 self.period = DOWN[self.period]
