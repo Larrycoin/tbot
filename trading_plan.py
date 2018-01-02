@@ -24,9 +24,9 @@ class TradingPlan(object):
         self.exch = exch
         self.name = name
         self.buy = buy
-        print(args)
-        self.pair = args[0]
-        self.args = args[1:]
+        if not getattr(self, 'pair', False):
+            self.pair = args[0]
+        self.args = args
         self.currency = self.pair.split('-')[1]
         self.sent_order = False
         self.update_open_orders()
@@ -122,9 +122,10 @@ class TradingPlan(object):
             return True
 
     def do_cancel_order(self):
-        self.exch.cancel_order(self.order)
-        print('Canceled order: %s' % self.order)
-        self.order = None
+        if self.order:
+            self.exch.cancel_order(self.order)
+            print('Canceled order: %s' % self.order)
+            self.order = None
 
     def process_tick_bying(self, tick, stop, quantity):
         self.check_order()

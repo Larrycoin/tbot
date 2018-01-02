@@ -1,6 +1,7 @@
 '''
 '''
 
+import argparse
 import sys
 
 import pandas as pd
@@ -57,36 +58,58 @@ def ATR_STP(df, name=None):
 
 
 class TrailingTradingPlan(TradingPlan):
-    def __init__(self, exch, name, args, buy):
-        if len(args) not in (4, 5):
-            print(args)
-            print('Usage: trade.py [-b] %s <pair> '
-                  'ALL|<quantity> '
-                  '<stop price> <entry price> '
-                  '<target price>' % name)
-            sys.exit(1)
-        super().__init__(exch, name, args, buy)
+    DOWN = {60: 30, 30: 15, 15: 15}
 
-        print('Bying %s' % self.buy)
-        self.stop_price = str2btc(args[2])
-        self.entry_price = str2btc(args[3])
-        self.target_price = str2btc(args[4])
+    def __init__(self, exch, name, arguments, buy):
+        parser = argparse.ArgumentParser(prog=name)
+        parser.add_argument(
+            '-r', "--range",
+            help='floating number to compute buy range. Default 0.09.',
+            type=float, default=0.09)
+        parser.add_argument('-t', "--trailing", help='force trailing mode',
+                            action="store_true")
+        parser.add_argument(
+            '-p', "--period",
+            help='initial period to check acceleration in trailing mode.'
+            ' Default 60.',
+            choices=TrailingTradingPlan.DOWN.keys(),
+            type=int, default=60)
+        parser.add_argument('pair', help='pair of crypto like BTC-ETH')
+        parser.add_argument('quantity', help='quantity of coins or ALL')
+        parser.add_argument('stop', help='stop level')
+        parser.add_argument('entry', help='entry level')
+        parser.add_argument('target', help='target level')
+        args = parser.parse_args(arguments)
+
+        self.pair = args.pair
+        self.stop_price = str2btc(args.stop)
+        self.entry_price = str2btc(args.entry)
+        self.target_price = str2btc(args.target)
         self.trail_price = None
-        self.trailing = False
+        self.trailing = args.trailing
         self.df = None
-        self.period = 60
+        self.period = args.period
+        self.range = args.range
 
-        if args[1] == 'ALL':
+        if args.quantity == 'ALL':
             if self.balance == 0:
                 self.log(None,
                          'ALL specified and no existing position. Aborting.')
                 sys.exit(1)
             self.quantity = self.balance
         else:
-            self.quantity = float(args[1])
+            self.quantity = float(args.quantity)
+
+        super().__init__(exch, name, arguments, buy)
+
+        print('%s %s stop=%s entry=%s target=%s quantity=%.3f\n'
+              '  trailing=%s period=%d range=%f buy=%s' %
+              (self.name, self.pair, btc2str(self.stop_price),
+               btc2str(self.entry_price), btc2str(self.target_price),
+               self.quantity, self.trailing, self.period, self.range, self.buy))
 
         if self.buy:
-            if not self.do_buy_order(self.stop_price, self.entry_price):
+            if not self.do_buy_order(self.stop_price, self.entry_price, self.range):
                 sys.exit(1)
         self.status = 'buying'
 
@@ -164,7 +187,6 @@ class TrailingTradingPlan(TradingPlan):
     def compute_stop(self):
         ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                      'V': 'sum', 'BV': 'sum'}
-        DOWN = {60: 30, 30: 15, 15: 15}
         risk = self.entry_price - self.stop_price
         self.period = 60
 
@@ -180,7 +202,7 @@ class TrailingTradingPlan(TradingPlan):
             if ((high - low) < (3.5 * risk)):
                 break
             else:
-                self.period = DOWN[self.period]
+                self.period = TrailingTradingPlan.DOWN[self.period]
                 self.log(None, 'Downsampling to %d mn risk=%.8f size=%.8f' %
                          (self.period, risk, last_row['H'] - last_row['L']))
             if self.period == 30:

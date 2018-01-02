@@ -26,28 +26,26 @@ def main():
         args = sys.argv[3:]
     else:
         args = sys.argv[2:]
-    print(args)
     exch = BittrexExchange(True)
-    pair = args[0]
     trading_plan = trading_plan_class(exch, sys.argv[1], args, buy)
     ticks = []
 
     try:
-        main_loop(exch, pair, trading_plan, ticks)
+        main_loop(exch, trading_plan.pair, trading_plan, ticks)
     except KeyboardInterrupt:
         print('\nInterrupted by user')
     except BaseException:
         print(traceback.format_exc())
 
     if len(ticks) > 0:
-        filename = '%s-%s.trade' % (pair, ticks[0]['T'])
+        filename = '%s-%s.trade' % (trading_plan.pair, ticks[0]['T'])
         with gzip.open(filename, 'w') as fout:
             data = {'candles': ticks,
                     'plan': sys.argv[1],
-                    'pair': sys.argv[2],
+                    'pair': trading_plan.pair,
                     'balance': trading_plan.balance,
                     'available': trading_plan.available,
-                    'args': sys.argv[3:]}
+                    'args': trading_plan.args}
             json_str = json.dumps(data) + '\n'
             json_bytes = json_str.encode('utf-8')
             fout.write(json_bytes)
