@@ -42,7 +42,7 @@ quantity = position['Balance']
 orders = exch.get_open_orders(market)
 
 if len(orders) > 0:
-    print(orders[0].data)
+    print(orders[0])
     order = orders[0]
 else:
     order = None

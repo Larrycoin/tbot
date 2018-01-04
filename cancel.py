@@ -16,7 +16,7 @@ market = sys.argv[1]
 exch = BittrexExchange(True)
 orders = exch.get_open_orders(market)
 if len(orders) > 0:
-    print('CANCELLING : %s' % orders[0].data)
+    print('CANCELLING : %s' % orders[0])
     exch.cancel_order(orders[0])
 else:
     print('no order found.')
