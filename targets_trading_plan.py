@@ -21,10 +21,7 @@ class TargetsTradingPlan(TradingPlan):
         self.stop_price = str2btc(args[2])
         self.entry_price = str2btc(args[3])
         self.targets = [str2btc(arg) for arg in args[4:]]
-        self.log(None,
-                 '%d targets: %s' % (self.number,
-                                     ' '.join([btc2str(t)
-                                               for t in self.targets])))
+
         if args[1] == 'ALL':
             if self.balance == 0:
                 self.log(None,
@@ -33,6 +30,18 @@ class TargetsTradingPlan(TradingPlan):
             self.quantity = self.balance
         else:
             self.quantity = float(args[1])
+
+        self.log(None,
+                 '%s %s stop=%s entry=%s quantity=%.3f buy=%s' %
+                 (self.name, self.pair, btc2str(self.stop_price),
+                  btc2str(self.entry_price),
+                  self.quantity, self.buy))
+
+        self.log(None,
+                 '%d targets: %s' % (self.number,
+                                     ' '.join([btc2str(t)
+                                               for t in self.targets])))
+
         if self.buy:
             self.status = 'buying'
             if not self.do_buy_order(self.stop_price, self.entry_price):
