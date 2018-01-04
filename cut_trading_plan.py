@@ -10,7 +10,7 @@ from trading_plan import TradingPlan
 
 class CutTradingPlan(TradingPlan):
     def __init__(self, exch, name, args, buy):
-        if len(args) != 3:
+        if len(args) != 4:
             print('Usage: trade.py %s <pair> ALL|<quantity> '
                   '<stop price> <limit price>' % name)
             sys.exit(1)
