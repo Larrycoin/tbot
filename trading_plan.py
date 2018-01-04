@@ -54,6 +54,7 @@ class TradingPlan(object):
             self.sent_order = False
         else:
             self.order = None
+        return self.open_orders
 
     def log(self, tick, msg):
         if tick:
