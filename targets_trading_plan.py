@@ -65,7 +65,10 @@ class TargetsTradingPlan(TradingPlan):
                 return False
             elif self.status != 'down':
                 for order in self.update_open_orders():
-                    self.exch.cancel_order(self.order)
+                    self.log(tick, 'Canceling %s' % order)
+                    self.exch.cancel_order(order)
+                if len(self.update_open_orders()) != 0:
+                    return True
                 self.order = None
                 self.sell_stop(self.quantity, self.stop_price)
                 self.status = 'down'
