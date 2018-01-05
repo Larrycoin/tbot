@@ -109,7 +109,13 @@ class BittrexExchange(Exchange):
     @bittrex_retry()
     def cancel_order(self, order):
         req = self.conn.cancel(order.id)
-        self._validate_req(req, 'Unable to cancel order')
+        try:
+            self._validate_req(req, 'Unable to cancel order')
+        except BittrexError as error:
+            if error.args[0] == 'ORDER_NOT_OPEN':
+                return True
+            else:
+                raise error
         while True:
             req = self.conn.get_order(order.id)
             self._validate_req(req,
