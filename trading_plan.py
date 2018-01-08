@@ -76,12 +76,27 @@ class TradingPlan(object):
         if self.order:
             self.do_cancel_order()
         else:
-            print('no order to cancel')
-        func(*args, **kwargs)
-        self.sent_order = True
-        self.update_open_orders()
-        if self.order:
-            print('New order: %s' % self.order)
+            self.log(None, 'no order to cancel')
+        done = 10
+        while done > 0:
+            try:
+                func(*args, **kwargs)
+                break
+            except BittrexError as error:
+                if error.args[0] == 'INSUFFICIENT_FUNDS':
+                    self.update_position()
+                    self.log(None, 'Insufficient funds: available=%.3f' % self.available)
+                    done -= 1
+                    continue
+                else:
+                    raise error
+        if done > 0:
+            self.sent_order = True
+            self.update_open_orders()
+            if self.order:
+                self.log(None, 'New order: %s' % self.order)
+        else:
+            self.log(None, 'Giving up.')
 
     def monitor_order_completion(self, msg):
         self.update_open_orders()
