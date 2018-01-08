@@ -10,7 +10,7 @@ from bittrex.bittrex import Bittrex
 
 from exchange import Exchange
 from exchange import Order
-from trading_plan import btc2str
+from utils import btc2str
 
 # Settings for retry
 MAX_DELAY = 30

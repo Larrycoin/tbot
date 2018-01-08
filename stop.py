@@ -3,7 +3,7 @@
 from bittrex_exchange import BittrexExchange
 import sys
 
-from monitor_trade import convert
+from utils import str2btc
 
 
 def get_orders(conn, market):
@@ -15,7 +15,7 @@ def send_order(order, exch, func, *args, **kwargs):
         order = None
     new_order = func(*args, **kwargs)
     if new_order:
-        print(new_order.data)
+        print(new_order)
         order = new_order
     return order
 
@@ -25,7 +25,7 @@ if len(sys.argv) != 3:
     sys.exit(1)
 
 market = sys.argv[1]
-stop = convert(sys.argv[2])
+stop = str2btc(sys.argv[2])
 
 currency = market.split('-')[1]
 

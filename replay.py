@@ -6,8 +6,8 @@ import json
 import time
 import sys
 
-from trading_plan import btc2str
 from trade import load_trading_plan_class
+from utils import btc2str
 
 
 class FakeExchange(object):

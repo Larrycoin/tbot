@@ -3,9 +3,9 @@
 
 import sys
 
-from trading_plan import btc2str
-from trading_plan import str2btc
 from trading_plan import TradingPlan
+from utils import btc2str
+from utils import str2btc
 
 
 class CutTradingPlan(TradingPlan):

@@ -7,9 +7,9 @@ import sys
 import pandas as pd
 from pandas.io.json import json_normalize
 
-from trading_plan import btc2str
-from trading_plan import str2btc
 from trading_plan import TradingPlan
+from utils import btc2str
+from utils import str2btc
 
 
 TEN8 = 100000000
