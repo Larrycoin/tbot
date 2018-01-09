@@ -10,7 +10,9 @@ def btc2str(val):
 
 
 def str2btc(s):
-    if s[-1] == 's':
+    if not isinstance(s, str):
+        val = s
+    elif s[-1] == 's':
         val = float(s[:-1]) * 0.00000001
     elif s[-1] == 'S':
         val = float(s[:-1]) * 0.000001

@@ -17,11 +17,20 @@ class TargetsTradingPlan(TradingPlan):
             sys.exit(1)
         super().__init__(exch, name, args, buy)
 
-        self.number = len(args) - 4
         self.stop_price = str2btc(args[2])
         self.entry_price = str2btc(args[3])
+        self.number = len(args) - 4
         self.targets = [str2btc(arg) for arg in args[4:]]
-
+        reached = [-arg for arg in self.targets if arg < 0]
+        stops = [self.stop_price, self.entry_price] + \
+                [abs(arg) for arg in self.targets]
+        self.targets = [arg if arg > 0 else None for arg in self.targets]
+        self.stop_entry = {}
+        for idx in range(len(stops) - 1):
+            self.stop_entry[stops[idx + 1]] = stops[idx]
+        if len(reached) > 0:
+            self.stop_price = self.stop_entry[reached[-1]]
+            self.entry_price = reached[-1]
         if args[1] == 'ALL':
             if self.balance == 0:
                 self.log(None,
@@ -39,7 +48,7 @@ class TargetsTradingPlan(TradingPlan):
 
         self.log(None,
                  '%d targets: %s' % (self.number,
-                                     ' '.join([btc2str(t)
+                                     ' '.join([btc2str(t) if t else 'reached'
                                                for t in self.targets])))
 
         if self.buy:
@@ -48,6 +57,10 @@ class TargetsTradingPlan(TradingPlan):
                 sys.exit(1)
         else:
             self.status = 'unknown'
+            for order in self.update_open_orders():
+                self.log(None, 'Canceling %s' % order)
+                self.exch.cancel_order(order)
+            self.order = None
 
     def process_tick(self, tick):
         if self.status == 'buying':
@@ -88,9 +101,14 @@ class TargetsTradingPlan(TradingPlan):
                 self.status = 'up'
             else:
                 for idx in range(len(self.targets)):
-                    if tick['H'] > self.targets[idx]:
-                        self.log(tick, 'target %d reached (%s)' %
-                                 (idx + 1, btc2str(self.targets[idx])))
+                    if self.targets[idx] and tick['H'] >= self.targets[idx]:
+                        self.stop_price = self.stop_entry[self.targets[idx]]
+                        self.entry_price = self.targets[idx]
+                        self.log(tick, 'target %d reached (%s). '
+                                 'new stop=%s new entry=%s' %
+                                 (idx + 1, btc2str(self.targets[idx]),
+                                  btc2str(self.stop_price),
+                                  btc2str(self.entry_price)))
                         self.targets[idx] = None
         self.log(tick, '%s %s %s-%s' % (self.status,
                                         btc2str(tick['C']),
