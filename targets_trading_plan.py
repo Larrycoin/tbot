@@ -83,7 +83,9 @@ class TargetsTradingPlan(TradingPlan):
                 if len(self.update_open_orders()) != 0:
                     return True
                 self.order = None
-                self.sell_stop(self.quantity, self.stop_price)
+                remain = len([t for t in self.targets if t])
+                self.sell_stop(self.quantity * remain / self.number,
+                               self.stop_price)
                 self.status = 'down'
         else:
             if (tick['H'] > self.targets[-1] and
@@ -92,12 +94,19 @@ class TargetsTradingPlan(TradingPlan):
             elif self.status != 'up':
                 for limit in self.targets[:-1]:
                     if limit:
+                        self.log(tick, 'Limit order %.3f @ %s' %
+                                 (self.quantity / self.number, btc2str(limit)))
                         self.sell_limit(self.quantity / self.number, limit)
                         self.order = None
-                self.sell_limit(self.quantity - (self.quantity *
-                                                 (self.number - 1)
-                                                 / self.number),
-                                self.targets[-1])
+                if self.targets[-1]:
+                    self.log(tick, 'Limit order %.3f @ %s' %
+                             (self.quantity - (self.quantity *
+                                               (self.number - 1)),
+                              btc2str(self.targets[-1])))
+                    self.sell_limit(self.quantity - (self.quantity *
+                                                     (self.number - 1)
+                                                     / self.number),
+                                    self.targets[-1])
                 self.status = 'up'
             else:
                 for idx in range(len(self.targets)):
