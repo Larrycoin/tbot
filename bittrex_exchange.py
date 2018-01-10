@@ -182,7 +182,7 @@ class BittrexOrder(Order):
                        (quantity, d['Exchange'],
                         price))
         else:
-            if d['IsConditional']:
+            if d['Condition'] != 'NONE':
                 order_type = 'STP'
                 price = btc2str(d['ConditionTarget'])
             else:
@@ -190,5 +190,14 @@ class BittrexOrder(Order):
                 price = btc2str(d['Limit'])
             return 'SELL %s %.3f %s @ %s' % (order_type, quantity,
                                              d['Exchange'], price)
+
+    def quantity(self):
+        return self.data['Quantity']
+
+    def limit(self):
+        return self.data['Limit']
+
+    def price_per_unit(self):
+        return self.data['PricePerUnit']
 
 # BittrexExchange.py ends here
