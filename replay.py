@@ -14,6 +14,7 @@ class FakeExchange(object):
     def __init__(self, balance, available):
         self.balance = balance
         self.available = available
+        self.candles = []
 
     def get_position(self, pair):
         return {'Balance': self.balance}
@@ -31,9 +32,11 @@ class FakeExchange(object):
         print('BUY RNG %.3f %s %s-%s' % (quantity, pair,
                                          btc2str(entry), btc2str(val_max)))
 
+    def get_candles(self, pair, duration):
+        return self.candles
 
 def main():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print('Usage: %s <trading plan>|- <filename> [<args>]' % sys.argv[0])
         sys.exit(1)
 
@@ -49,15 +52,16 @@ def main():
 
     exch = FakeExchange(data['balance'], data['available'])
     pair = data['pair']
-    if len(sys.argv) == 2:
-        trading_plan = trading_plan_class(exch, pair, data['args'])
+    print(data['plan'], data['args'])
+    if len(sys.argv) == 3:
+        trading_plan = trading_plan_class(exch, data['plan'], data['args'], False)
     else:
-        trading_plan = trading_plan_class(exch, pair, sys.argv[3:])
+        trading_plan = trading_plan_class(exch, data['plan'], sys.argv[3:], False)
 
     for tick in data['candles']:
+        exch.candles.append(tick)
         if not trading_plan.process_tick(tick):
             break
-        time.sleep(1)
 
 
 if __name__ == "__main__":
