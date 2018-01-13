@@ -1,6 +1,9 @@
 '''
 '''
 
+import pandas as pd
+from pandas.io.json import json_normalize
+
 from bittrex_exchange import BittrexError
 from utils import btc2str
 from utils import str2btc
@@ -161,6 +164,23 @@ class TradingPlan(object):
             if not self.sent_order and self.order:
                 print(self.order)
 
+    def init_dataframes(self):
+        candles = self.exch.get_candles(self.pair, 'oneMin')
+        self.df = json_normalize(candles)
+        self.df['T'] = pd.to_datetime(self.df['T'])
+        self.df = self.df.set_index('T')
+        return self.df
+
+    def update_dataframe(self, tick):
+        tick['T'] = pd.to_datetime(tick['T'])
+        frame = pd.DataFrame(tick, index=[tick['T']])
+        self.df = pd.concat([self.df, frame])
+
+    def resample_dataframes(self, period):
+        ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
+                     'V': 'sum', 'BV': 'sum'}
+        return self.df.resample(str(period) + 'T').apply(ohlc_dict)
+        
 trading_plan_class = TradingPlan
 
 # trading_plan.py ends here

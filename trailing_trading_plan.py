@@ -4,9 +4,6 @@
 import argparse
 import sys
 
-import pandas as pd
-from pandas.io.json import json_normalize
-
 from trading_plan import TradingPlan
 from utils import btc2str
 from utils import str2btc
@@ -136,7 +133,6 @@ class TrailingTradingPlan(TradingPlan):
                     if not self.monitor_order_completion('Target reached: '):
                         return True
                 self.trailing = True
-                tick['T'] = pd.to_datetime(tick['T'])
 
                 if (self.trail_price and tick['L'] < self.trail_price and
                    self.monitor_order_completion('Stop reached: ')):
@@ -146,8 +142,7 @@ class TrailingTradingPlan(TradingPlan):
                 if self.df is None:
                     self.init_dataframes()
 
-                frame = pd.DataFrame(tick, index=[tick['T']])
-                self.df = pd.concat([self.df, frame])
+                self.update_dataframe(tick)
 
                 trail_price = self.compute_stop()
 
@@ -177,21 +172,12 @@ class TrailingTradingPlan(TradingPlan):
         else:
             return self.status
 
-    def init_dataframes(self):
-        candles = self.exch.get_candles(self.pair, 'oneMin')
-        self.df = json_normalize(candles)
-        self.df['T'] = pd.to_datetime(self.df['T'])
-        self.df = self.df.set_index('T')
-        return self.df
-
     def compute_stop(self):
-        ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
-                     'V': 'sum', 'BV': 'sum'}
         risk = self.entry_price - self.stop_price
         self.period = 60
 
         while True:
-            ndf = self.df.resample(str(self.period) + 'T').apply(ohlc_dict)
+            ndf = self.resample_dataframes(self.period)
             last_row = ndf.iloc[-1]
             prev_row = ndf.iloc[-2]
             last = ndf.tail(4)
