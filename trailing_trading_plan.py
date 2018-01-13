@@ -55,8 +55,6 @@ def ATR_STP(df, name=None):
 
 
 class TrailingTradingPlan(TradingPlan):
-    DOWN = {60: 30, 30: 15, 15: 15}
-
     def __init__(self, exch, name, arguments, buy):
         parser = argparse.ArgumentParser(prog=name)
         parser.add_argument(
@@ -69,7 +67,6 @@ class TrailingTradingPlan(TradingPlan):
             '-p', "--period",
             help='initial period to check acceleration in trailing mode.'
             ' Default 60.',
-            choices=TrailingTradingPlan.DOWN.keys(),
             type=int, default=60)
         parser.add_argument('pair', help='pair of crypto like BTC-ETH')
         parser.add_argument('quantity', help='quantity of coins or ALL')
@@ -174,10 +171,10 @@ class TrailingTradingPlan(TradingPlan):
 
     def compute_stop(self):
         risk = self.entry_price - self.stop_price
-        self.period = 60
+        period = self.period
 
         while True:
-            ndf = self.resample_dataframes(self.period)
+            ndf = self.resample_dataframes(period)
             last_row = ndf.iloc[-1]
             prev_row = ndf.iloc[-2]
             last = ndf.tail(4)
@@ -188,10 +185,10 @@ class TrailingTradingPlan(TradingPlan):
             if ((high - low) < (3.5 * risk)):
                 break
             else:
-                self.period = TrailingTradingPlan.DOWN[self.period]
+                period = period // 2
                 self.log(None, 'Downsampling to %d mn risk=%.8f size=%.8f' %
-                         (self.period, risk, last_row['H'] - last_row['L']))
-            if self.period == 30:
+                         (period, risk, last_row['H'] - last_row['L']))
+            if period <= 15:
                 break
         ATR_STP(ndf)
         trail_price = max(ndf.tail()['ATR_STP'].values[-1], self.entry_price)
