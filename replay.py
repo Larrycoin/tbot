@@ -11,10 +11,10 @@ from utils import btc2str
 
 
 class FakeExchange(object):
-    def __init__(self, balance, available):
+    def __init__(self, balance, available, candles):
         self.balance = balance
         self.available = available
-        self.candles = []
+        self.candles = candles
 
     def get_position(self, pair):
         return {'Balance': self.balance}
@@ -35,6 +35,7 @@ class FakeExchange(object):
     def get_candles(self, pair, duration):
         return self.candles
 
+
 def main():
     if len(sys.argv) < 3:
         print('Usage: %s <trading plan>|- <filename> [<args>]' % sys.argv[0])
@@ -50,15 +51,17 @@ def main():
     else:
         trading_plan_class = load_trading_plan_class(sys.argv[1])
 
-    exch = FakeExchange(data['balance'], data['available'])
-    pair = data['pair']
+    exch = FakeExchange(data['balance'], data['available'],
+                        data['candles'][:20])
     print(data['plan'], data['args'])
     if len(sys.argv) == 3:
-        trading_plan = trading_plan_class(exch, data['plan'], data['args'], False)
+        trading_plan = trading_plan_class(exch, data['plan'],
+                                          data['args'], False)
     else:
-        trading_plan = trading_plan_class(exch, data['plan'], sys.argv[3:], False)
+        trading_plan = trading_plan_class(exch, data['plan'],
+                                          sys.argv[3:], False)
 
-    for tick in data['candles']:
+    for tick in data['candles'][20:]:
         exch.candles.append(tick)
         if not trading_plan.process_tick(tick):
             break

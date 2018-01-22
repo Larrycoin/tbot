@@ -169,7 +169,7 @@ class TradingPlan(object):
         self.df = json_normalize(candles)
         self.df['T'] = pd.to_datetime(self.df['T'])
         self.df = self.df.set_index('T')
-        return self.df
+        return candles
 
     def update_dataframe(self, tick):
         tick['T'] = pd.to_datetime(tick['T'])
@@ -180,7 +180,8 @@ class TradingPlan(object):
         ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                      'V': 'sum', 'BV': 'sum'}
         return self.df.resample(str(period) + 'T').apply(ohlc_dict)
-        
+
+
 trading_plan_class = TradingPlan
 
 # trading_plan.py ends here

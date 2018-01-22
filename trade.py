@@ -28,7 +28,7 @@ def main():
         args = sys.argv[2:]
     exch = BittrexExchange(True)
     trading_plan = trading_plan_class(exch, sys.argv[1], args, buy)
-    ticks = []
+    ticks = exch.get_candles(trading_plan.pair, 'oneMin')
 
     try:
         main_loop(exch, trading_plan.pair, trading_plan, ticks)
