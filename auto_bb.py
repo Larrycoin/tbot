@@ -44,9 +44,11 @@ class AutoBBTradingPlan(TradingPlan):
         BB(ndf)
         MA(ndf, 20, 'V', 'VMA20')
 
-        if self.check_stop(tick):
-            pass
-        elif self.status == 'searching':
+        # Put a stop if needed but let the trade logic continue if it is not
+        # reached
+        self.check_stop(tick)
+
+        if self.status == 'searching':
             self.process_tick_entry(tick, ndf)
         elif self.status == 'buying':
             self.process_tick_buying(tick, ndf)
@@ -75,6 +77,11 @@ class AutoBBTradingPlan(TradingPlan):
                      (self.quantity, btc2str(self.entry),
                       btc2str(self.cost)))
             self.status = 'middle'
+        elif self.entry < tick['L']:
+            self.log(tick, 'entry %s < low %s -> canceling order' %
+                     (btc2str(self.entry), btc2str(tick['L'])))
+            self.do_cancel_order()
+            self.status = 'searching'
 
     def process_tick_entry(self, tick, df):
         last_row = df.iloc[-1]
@@ -85,19 +92,19 @@ class AutoBBTradingPlan(TradingPlan):
                  ('volok' if volok else 'volko',
                   last_row['V'], last_row['VMA20'],
                   'priceok' if priceok else 'priceko',
-                  btc2str(last_row['C']), btc2str(last_row['BBL']),
+                  btc2str(last_row['L']), btc2str(last_row['BBL']),
                   'bbok' if bbok else 'bbko',
                   last_row['BBW']))
         if volok and priceok and bbok:
             self.status = 'buying'
-            self.entry = tick['C']
-            self.quantity = self.amount / tick['C']
+            self.entry = last_row['L']
+            self.quantity = self.amount / self.entry
             self.send_order(self.exch.buy_limit,
                             self.pair, self.quantity,
-                            self.entry * 1.05)
+                            self.entry)
             self.stop = tick['L'] * 0.95
-            self.log(tick, 'bought %f @ %s' %
-                     (self.quantity, btc2str(tick['C'])))
+            self.log(tick, 'buying %f @ %s' %
+                     (self.quantity, btc2str(self.entry)))
 
     def process_tick_exit_middle(self, tick, df):
         last_row = df.iloc[-1]
@@ -123,8 +130,11 @@ class AutoBBTradingPlan(TradingPlan):
     def check_stop(self, tick):
         if self.stop:
             if tick['L'] < self.stop:
-                self.log(tick, 'stop reached. exiting.')
-                self.sell(tick)
+                stop = tick['L'] * 0.99
+                self.log(tick, 'stop reached. Putting a physical stop @ %s' %
+                         btc2str(stop))
+                self.sell_stop(self.quantity, stop)
+                self.stop = None
                 return True
         return False
 
