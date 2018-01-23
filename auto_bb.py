@@ -112,7 +112,11 @@ class AutoBBTradingPlan(TradingPlan):
 
     def process_tick_recovering(self, tick, df):
         self.buy_order = self.exch.get_order_history(self.pair)[0]
-        self.log('Recovered order %s' % self.buy_order)
+        self.log(tick, 'Recovered order %s' % self.buy_order)
+        if self.balance < self.buy_order.data['Quantity']:
+            self.log(tick, 'Invalid balance %s < %s. Aborting' %
+                     (self.balance, self.buy_order.data['Quantity']))
+            sys.exit(1)
         self.status = 'buying'
 
     def process_tick_searching(self, tick, df):
@@ -134,7 +138,7 @@ class AutoBBTradingPlan(TradingPlan):
             self.send_order(self.exch.buy_limit,
                             self.pair, self.quantity,
                             self.entry)
-            self.stop = tick['L'] * 0.95
+            self.set_stop(tick, tick['L'] * 0.95)
             self.buy_order = self.order
             self.log(tick, 'buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
@@ -142,7 +146,6 @@ class AutoBBTradingPlan(TradingPlan):
     def process_tick_buying(self, tick, df):
         if self.monitor_order_completion('buy '):
             self.exch.update_order(self.buy_order)
-            print(self.buy_order.data)
             self.entry = self.buy_order.data['PricePerUnit']
             self.quantity = self.buy_order.data['Quantity']
             self.cost = self.buy_order.data.get('Commission', 0)
@@ -163,7 +166,7 @@ class AutoBBTradingPlan(TradingPlan):
         if priceok:
             if volok:
                 self.status = 'top'
-                self.stop = self.entry
+                self.set_stop(tick, self.entry)
             else:
                 self.sell(tick)
 
@@ -175,7 +178,7 @@ class AutoBBTradingPlan(TradingPlan):
             if volok:
                 self.sell(tick)
             else:
-                self.stop = last_row['BBM']
+                self.set_stop(tick, last_row['BBM'])
 
     def sell(self, tick):
         self.status = 'selling'
@@ -201,6 +204,10 @@ class AutoBBTradingPlan(TradingPlan):
         self.entry = None
         self.stop = None
         self.status = 'searching'
+        
+    def set_stop(self, tick, value):
+        self.stop = value
+        self.log(tick, 'Setting virtual stop to %s' % btc2str(value))
 
 
 trading_plan_class = AutoBBTradingPlan
