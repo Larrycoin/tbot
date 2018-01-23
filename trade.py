@@ -33,9 +33,15 @@ def main():
     try:
         main_loop(exch, trading_plan.pair, trading_plan, ticks)
     except KeyboardInterrupt:
-        print('\nInterrupted by user')
+        try:
+            print('\nInterrupted by user')
+        except:
+            pass
     except BaseException:
-        print(traceback.format_exc())
+        try:
+            print(traceback.format_exc())
+        except:
+            pass
 
     if len(ticks) > 0:
         filename = '%s-%s.trade' % (trading_plan.pair, ticks[0]['T'])
