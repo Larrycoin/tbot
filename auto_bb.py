@@ -184,12 +184,12 @@ class AutoBBTradingPlan(TradingPlan):
     def process_tick_exit_top(self, tick, df):
         last_row = df.iloc[-1]
         volok = (last_row['V'] < last_row['VMA20'])
-        priceok = (tick['H'] > last_row['BBU'])
+        priceok = (last_row['H'] > last_row['BBU'])
         self.log(tick, '%s(%.2f < %.2f) %s(%s > %s)' %
                  ('volok' if volok else 'volko',
                   last_row['V'], last_row['VMA20'],
                   'priceok' if priceok else 'priceko',
-                  tick['H'], last_row['BBU']))
+                  last_row['H'], last_row['BBU']))
         if priceok:
             if volok:
                 self.sell(tick)
