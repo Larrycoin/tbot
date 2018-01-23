@@ -138,6 +138,13 @@ class BittrexExchange(Exchange):
         self._validate_req(req, 'Unable to get position')
         return req['result']
 
+    @bittrex_retry()
+    def update_order(self, order):
+        req = self.conn.get_order(order.id)
+        self._validate_req(req, 'Unable to get order')
+        order.update(req['result'])
+        return order
+
     @staticmethod
     def _validate_req(req, msg=None, do_raise=True):
         if 'success' in req and req['success'] is True:
