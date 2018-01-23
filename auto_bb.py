@@ -27,14 +27,17 @@ class AutoBBTradingPlan(TradingPlan):
                             type=float)
         parser.add_argument('period',
                             help='number of minutes to take decisions',
-                            type=int, default=5)
+                            type=int)
         args = parser.parse_args(arguments)
 
         self.pair = args.pair
         self.amount = args.amount
         self.period = args.period
         self.percent = args.percent
-        self.status = 'searching'
+        if buy:
+            self.status = 'searching'
+        else:
+            self.status = 'recovering'
         self.entry = None
         self.stop = None
         self.stop_order = None
@@ -60,6 +63,8 @@ class AutoBBTradingPlan(TradingPlan):
 
         if self.status == 'searching':
             self.process_tick_searching(tick, ndf)
+        elif self.status == 'recovering':
+            self.process_tick_recovering(tick, ndf)
         elif self.status == 'buying':
             self.process_tick_buying(tick, ndf)
         elif self.status == 'middle':
@@ -105,6 +110,11 @@ class AutoBBTradingPlan(TradingPlan):
             return True
         return False
 
+    def process_tick_recovering(self, tick, df):
+        self.buy_order = self.exch.get_order_history(self.pair)[0]
+        self.log('Recovered order %s' % self.buy_order)
+        self.status = 'buying'
+
     def process_tick_searching(self, tick, df):
         last_row = df.iloc[-1]
         volok = (last_row['V'] > last_row['VMA20'])
@@ -125,14 +135,17 @@ class AutoBBTradingPlan(TradingPlan):
                             self.pair, self.quantity,
                             self.entry)
             self.stop = tick['L'] * 0.95
+            self.buy_order = self.order
             self.log(tick, 'buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
 
     def process_tick_buying(self, tick, df):
         if self.monitor_order_completion('buy '):
-            self.entry = self.order.data['PricePerUnit']
-            self.quantity = self.order.data['Quantity']
-            self.cost = self.order.data['Commission']
+            self.exch.update_order(self.buy_order)
+            print(self.buy_order.data)
+            self.entry = self.buy_order.data['PricePerUnit']
+            self.quantity = self.buy_order.data['Quantity']
+            self.cost = self.buy_order.data.get('Commission', 0)
             self.log(tick, "bought %f @ %s Fees %s" %
                      (self.quantity, btc2str(self.entry),
                       btc2str(self.cost)))
