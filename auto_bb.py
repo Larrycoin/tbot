@@ -138,7 +138,6 @@ class AutoBBTradingPlan(TradingPlan):
             self.send_order(self.exch.buy_limit,
                             self.pair, self.quantity,
                             self.entry)
-            self.set_stop(tick, tick['L'] * 0.95)
             self.buy_order = self.order
             self.log(tick, 'buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
@@ -152,6 +151,7 @@ class AutoBBTradingPlan(TradingPlan):
             self.log(tick, "bought %f @ %s Fees %s" %
                      (self.quantity, btc2str(self.entry),
                       btc2str(self.cost)))
+            self.set_stop(tick, self.entry * 0.95)
             self.status = 'middle'
         elif self.entry < tick['L']:
             self.log(tick, 'entry %s < low %s -> canceling order' %
