@@ -203,7 +203,7 @@ class AutoBBTradingPlan(TradingPlan):
                         tick['L'] / 2)
 
     def process_selling(self, tick, ndf):
-        if self.monitor_order_completion():
+        if self.monitor_order_completion('sell '):
             self.compute_gains(self.order)
 
     def compute_gains(self, order):
