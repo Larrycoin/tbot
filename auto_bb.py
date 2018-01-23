@@ -143,6 +143,7 @@ class AutoBBTradingPlan(TradingPlan):
                      (self.quantity, btc2str(self.entry)))
 
     def process_tick_buying(self, tick, df):
+        last_row = df.iloc[-1]
         if self.monitor_order_completion('buy '):
             self.exch.update_order(self.buy_order)
             self.entry = self.buy_order.data['PricePerUnit']
@@ -151,8 +152,13 @@ class AutoBBTradingPlan(TradingPlan):
             self.log(tick, "bought %f @ %s Fees %s" %
                      (self.quantity, btc2str(self.entry),
                       btc2str(self.cost)))
-            self.set_stop(tick, self.entry * 0.95)
-            self.status = 'middle'
+            # in recovery mode we can switch to 'top directly
+            if tick['C'] > last_row['BBM']:
+                self.status = 'top'
+            else:
+                self.status = 'middle'
+            # safe bet for recovery mode
+            self.set_stop(tick, min(last_row['BBL'], self.entry * 0.95))
         elif self.entry < tick['L']:
             self.log(tick, 'entry %s < low %s -> canceling order' %
                      (btc2str(self.entry), btc2str(tick['L'])))
@@ -163,6 +169,11 @@ class AutoBBTradingPlan(TradingPlan):
         last_row = df.iloc[-1]
         volok = (last_row['V'] > last_row['VMA20'])
         priceok = (tick['H'] > last_row['BBM'])
+        self.log(tick, '%s(%.2f > %.2f) %s(%s > %s)' %
+                 ('volok' if volok else 'volko',
+                  last_row['V'], last_row['VMA20'],
+                  'priceok' if priceok else 'priceko',
+                  tick['H'], last_row['BBM']))
         if priceok:
             if volok:
                 self.status = 'top'
@@ -174,6 +185,11 @@ class AutoBBTradingPlan(TradingPlan):
         last_row = df.iloc[-1]
         volok = (last_row['V'] < last_row['VMA20'])
         priceok = (tick['H'] > last_row['BBU'])
+        self.log(tick, '%s(%.2f < %.2f) %s(%s > %s)' %
+                 ('volok' if volok else 'volko',
+                  last_row['V'], last_row['VMA20'],
+                  'priceok' if priceok else 'priceko',
+                  tick['H'], last_row['BBU']))
         if priceok:
             if volok:
                 self.sell(tick)
