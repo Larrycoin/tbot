@@ -16,6 +16,11 @@ TEN8 = 100000000
 class AutoBBTradingPlan(TradingPlan):
     def __init__(self, exch, name, arguments, buy):
         parser = argparse.ArgumentParser(prog=name)
+        parser.add_argument(
+            '-p', "--percent",
+            help='percentage of the Bollinger band width to look for.'
+            ' Default 0.05.',
+            type=float, default=0.05)
         parser.add_argument('pair', help='pair of crypto like BTC-ETH')
         parser.add_argument('amount',
                             help='quantity of currency to use for the trade',
@@ -28,6 +33,7 @@ class AutoBBTradingPlan(TradingPlan):
         self.pair = args.pair
         self.amount = args.amount
         self.period = args.period
+        self.percent = args.percent
         self.status = 'searching'
         self.entry = None
         self.stop = None
@@ -37,6 +43,9 @@ class AutoBBTradingPlan(TradingPlan):
         super().__init__(exch, name, arguments, buy)
 
         self.ticks = self.init_dataframes()
+
+        self.log(None, '%s amount=%s period=%d mn percent=%.2f%%' %
+                 (name, btc2str(self.amount), self.period, self.percent * 100))
 
     def process_tick(self, tick):
         self.update_dataframe(tick)
@@ -87,14 +96,14 @@ class AutoBBTradingPlan(TradingPlan):
         last_row = df.iloc[-1]
         volok = (last_row['V'] > last_row['VMA20'])
         priceok = (last_row['L'] < last_row['BBL'])
-        bbok = (last_row['BBW'] > 0.05)
-        self.log(tick, '%s(%.2f > %.2f) %s(%s < %s) %s(%.3f > 0.05)' %
+        bbok = (last_row['BBW'] > self.percent)
+        self.log(tick, '%s(%.2f > %.2f) %s(%s < %s) %s(%.2f > %.2f)' %
                  ('volok' if volok else 'volko',
                   last_row['V'], last_row['VMA20'],
                   'priceok' if priceok else 'priceko',
                   btc2str(last_row['L']), btc2str(last_row['BBL']),
                   'bbok' if bbok else 'bbko',
-                  last_row['BBW']))
+                  last_row['BBW'], self.percent))
         if volok and priceok and bbok:
             self.status = 'buying'
             self.entry = last_row['L']
