@@ -211,10 +211,16 @@ class AutoBBTradingPlan(TradingPlan):
         self.send_order(self.exch.sell_limit,
                         self.pair, self.quantity,
                         tick['L'] / 2)
+        self.check_order()
+        self.sell_order = self.order
 
     def process_selling(self, tick, ndf):
         if self.monitor_order_completion('sell '):
-            self.compute_gains(self.order)
+            past_orders = self.exch.get_order_history(self.pair)
+            if len(past_orders) == 0:
+                self.log(tick, 'Unable to find sell order. Aborting.')
+                sys.exit(1)
+            self.compute_gains(past_orders[0])
 
     def compute_gains(self, order):
         price = order.data['PricePerUnit']
