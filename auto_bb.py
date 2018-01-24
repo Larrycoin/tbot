@@ -111,7 +111,13 @@ class AutoBBTradingPlan(TradingPlan):
         return False
 
     def process_tick_recovering(self, tick, df):
-        self.buy_order = self.exch.get_order_history(self.pair)[0]
+        past_orders = self.exch.get_order_history(self.pair)
+        for order in past_orders:
+            if order.is_buy_order():
+                self.buy_order = order
+        else:
+            self.log(tick, 'No buy order. Aborting.')
+            sys.exit(1)
         self.log(tick, 'Recovered order %s' % self.buy_order)
         if self.balance < self.buy_order.data['Quantity']:
             self.log(tick, 'Invalid balance %s < %s. Aborting' %
