@@ -1,6 +1,8 @@
 '''
 '''
 
+from colored import (stylize, fg)
+
 
 def btc2str(val):
     if val:
@@ -73,6 +75,14 @@ def BB(df, price='C', length=20, numsd=2):
     df['BBW'] = df[price].rolling(window=length,
                                   center=False).std() * 2 * numsd / df['BBM']
     return df
+
+
+def red(s):
+    return stylize(s, fg('red'))
+
+
+def green(s):
+    return stylize(s, fg('green'))
 
 
 # utils.py ends here

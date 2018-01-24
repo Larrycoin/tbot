@@ -1,3 +1,4 @@
 python-bittrex>=0.2.2
 tenacity
 pandas
+colored

@@ -5,9 +5,7 @@ import argparse
 import sys
 
 from trading_plan import TradingPlan
-from utils import btc2str
-from utils import BB
-from utils import MA
+from utils import (btc2str, BB, MA, red, green)
 
 
 TEN8 = 100000000
@@ -131,11 +129,11 @@ class AutoBBTradingPlan(TradingPlan):
         priceok = (last_row['L'] < last_row['BBL'])
         bbok = (last_row['BBW'] > self.percent)
         self.log(tick, '%s(%.2f > %.2f) %s(%s < %s) %s(%.2f > %.2f)' %
-                 ('volok' if volok else 'volko',
+                 (green('volok') if volok else red('volko'),
                   last_row['V'], last_row['VMA20'],
-                  'priceok' if priceok else 'priceko',
+                  green('priceok') if priceok else red('priceko'),
                   btc2str(last_row['L']), btc2str(last_row['BBL']),
-                  'bbok' if bbok else 'bbko',
+                  green('bbok') if bbok else red('bbko'),
                   last_row['BBW'], self.percent))
         if volok and priceok and bbok:
             self.status = 'buying'
@@ -173,6 +171,8 @@ class AutoBBTradingPlan(TradingPlan):
             self.log(tick, 'entry %s < low %s -> canceling order' %
                      (btc2str(self.entry), btc2str(tick['L'])))
             self.do_cancel_order()
+            self.entry = None
+            self.quantity = 0
             self.status = 'searching'
 
     def process_tick_exit_middle(self, tick, df):
@@ -180,9 +180,9 @@ class AutoBBTradingPlan(TradingPlan):
         volok = (last_row['V'] > last_row['VMA20'])
         priceok = (tick['H'] > last_row['BBM'])
         self.log(tick, '%s(%.2f > %.2f) %s(%s > %s)' %
-                 ('volok' if volok else 'volko',
+                 (green('volok') if volok else red('volko'),
                   last_row['V'], last_row['VMA20'],
-                  'priceok' if priceok else 'priceko',
+                  green('priceok') if priceok else red('priceko'),
                   tick['H'], last_row['BBM']))
         if priceok:
             if volok:
@@ -196,9 +196,9 @@ class AutoBBTradingPlan(TradingPlan):
         volok = (last_row['V'] < last_row['VMA20'])
         priceok = (last_row['H'] > last_row['BBU'])
         self.log(tick, '%s(%.2f < %.2f) %s(%s > %s)' %
-                 ('volok' if volok else 'volko',
+                 (green('volok') if volok else red('volko'),
                   last_row['V'], last_row['VMA20'],
-                  'priceok' if priceok else 'priceko',
+                  green('priceok') if priceok else red('priceko'),
                   last_row['H'], last_row['BBU']))
         if priceok:
             if volok:
