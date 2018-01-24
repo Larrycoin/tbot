@@ -113,6 +113,7 @@ class AutoBBTradingPlan(TradingPlan):
         for order in past_orders:
             if order.is_buy_order():
                 self.buy_order = order
+                break
         else:
             self.log(tick, 'No buy order. Aborting.')
             sys.exit(1)
