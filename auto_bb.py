@@ -100,7 +100,7 @@ class AutoBBTradingPlan(TradingPlan):
                 # order is no longer open
                 if not self.order:
                     self.exch.update_order(self.stop_order)
-                    self.compute_gains(self.stop_order)
+                    self.compute_gains(tick, self.stop_order)
                     self.stop_order = None
                 # buy order has been sent
                 elif self.order.is_buy_order():
@@ -221,9 +221,9 @@ class AutoBBTradingPlan(TradingPlan):
             if len(past_orders) == 0:
                 self.log(tick, 'Unable to find sell order. Aborting.')
                 sys.exit(1)
-            self.compute_gains(past_orders[0])
+            self.compute_gains(tick, past_orders[0])
 
-    def compute_gains(self, order):
+    def compute_gains(self, tick, order):
         price = order.data['PricePerUnit']
         quantity = order.data['Quantity']
         self.cost += order.data['Commission']
