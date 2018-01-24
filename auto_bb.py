@@ -138,12 +138,16 @@ class AutoBBTradingPlan(TradingPlan):
             self.send_order(self.exch.buy_limit,
                             self.pair, self.quantity,
                             self.entry)
+            self.check_order()
             self.buy_order = self.order
             self.log(tick, 'buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
 
     def process_tick_buying(self, tick, df):
         last_row = df.iloc[-1]
+        self.check_order()
+        if not self.buy_order and self.order:
+            self.buy_order = self.order
         if self.monitor_order_completion('buy '):
             self.exch.update_order(self.buy_order)
             self.entry = self.buy_order.data['PricePerUnit']
