@@ -6,6 +6,7 @@ import json
 import time
 import sys
 
+from bittrex_exchange import BittrexOrder
 from trade import load_trading_plan_class
 from utils import btc2str
 
@@ -15,18 +16,52 @@ class FakeExchange(object):
         self.balance = balance
         self.available = available
         self.candles = candles
+        self.order = None
+        self.orders = []
+        self.percent_fee = 0.0025
 
     def get_position(self, pair):
         return {'Balance': self.balance}
 
     def get_open_orders(self, pair):
-        return []
+        order = self.order
+        self.order = None
+        return [order]
 
     def sell_limit(self, pair, quantity, limit_price):
         print('SELL LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
+        self.order = BittrexOrder({'OrderId': '1',
+                                   'Quantity': quantity,
+                                   'Limit': limit_price,
+                                   'Commission':
+                                   limit_price * quantity * self.percent_fee,
+                                   'OrderType': 'LIMIT_SELL',
+                                   'IsConditional': False,
+                                   'Condition': 'NONE',
+                                   'Exchange': pair,
+                                   'PricePerUnit': limit_price},
+                                  id='1')
+        self.orders.insert(0, self.order)
+        return self.order
 
     def sell_stop(self, pair, quantity, stop_price):
         print('SELL STP %.3f %s %s' % (quantity, pair, btc2str(stop_price)))
+
+    def buy_limit(self, pair, quantity, limit_price):
+        print('BUY LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
+        self.order = BittrexOrder({'OrderId': '1',
+                                   'Quantity': quantity,
+                                   'Limit': limit_price,
+                                   'Commission':
+                                   limit_price * quantity * self.percent_fee,
+                                   'OrderType': 'LIMIT_BUY',
+                                   'IsConditional': False,
+                                   'Condition': 'NONE',
+                                   'Exchange': pair,
+                                   'PricePerUnit': limit_price},
+                                  id='1')
+        self.orders.insert(0, self.order)
+        return self.order
 
     def buy_limit_range(self, pair, quantity, entry, val_max):
         print('BUY RNG %.3f %s %s-%s' % (quantity, pair,
@@ -34,6 +69,16 @@ class FakeExchange(object):
 
     def get_candles(self, pair, duration):
         return self.candles
+
+    def get_order_history(self, pair=None):
+        return self.orders
+
+    def update_order(self, order):
+        return order
+
+    def cancel_order(self, order):
+        self.order = None
+        return self.order
 
 
 def main():
@@ -58,8 +103,14 @@ def main():
         trading_plan = trading_plan_class(exch, data['plan'],
                                           data['args'], False)
     else:
+        if sys.argv[3] == '-b':
+            buy = True
+            args = sys.argv[4:]
+        else:
+            buy = False
+            args = sys.argv[3:]
         trading_plan = trading_plan_class(exch, data['plan'],
-                                          sys.argv[3:], False)
+                                          args, buy)
 
     for tick in data['candles'][20:]:
         exch.candles.append(tick)
