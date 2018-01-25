@@ -54,12 +54,13 @@ class AutoBBTradingPlan(TradingPlan):
         ndf = self.resample_dataframes(self.period)
         BB(ndf)
         MA(ndf, 20, 'V', 'VMA20')
+        last_row = ndf.iloc[-2]
 
         # Put a stop if needed but let the trade logic continue if it is not
         # reached
         self.check_stop(self.tick)
 
-        self.dispatch_tick(self.status, self.tick, ndf)
+        self.dispatch_tick(self.status, self.tick, last_row)
 
         self.log('%s %s %s-%s %.3f (%f x %s)' %
                  (self.status,
@@ -97,7 +98,7 @@ class AutoBBTradingPlan(TradingPlan):
             return True
         return False
 
-    def process_tick_recovering(self, tick, df):
+    def process_tick_recovering(self, tick, last_row):
         past_orders = self.exch.get_order_history(self.pair)
         for order in past_orders:
             if order.is_buy_order():
@@ -113,16 +114,15 @@ class AutoBBTradingPlan(TradingPlan):
             sys.exit(1)
         self.status = 'buying'
 
-    def process_tick_searching(self, tick, df):
-        last_row = df.iloc[-1]
-        volok = (last_row['V'] > last_row['VMA20'])
-        priceok = (last_row['L'] < last_row['BBL'])
+    def process_tick_searching(self, tick, last_row):
+        volok = (last_row['V'] < last_row['VMA20'])
+        priceok = (tick['L'] < last_row['BBL'])
         bbok = (last_row['BBW'] > self.percent)
-        self.log('%s(%.2f > %.2f) %s(%s < %s) %s(%.2f > %.2f)' %
+        self.log('%s(%.2f < %.2f) %s(%s < %s) %s(%.2f > %.2f)' %
                  (green('volok') if volok else red('volko'),
                   last_row['V'], last_row['VMA20'],
                   green('priceok') if priceok else red('priceko'),
-                  btc2str(last_row['L']), btc2str(last_row['BBL']),
+                  btc2str(tick['L']), btc2str(last_row['BBL']),
                   green('bbok') if bbok else red('bbko'),
                   last_row['BBW'], self.percent))
         if volok and priceok and bbok:
@@ -137,8 +137,7 @@ class AutoBBTradingPlan(TradingPlan):
             self.log('buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
 
-    def process_tick_buying(self, tick, df):
-        last_row = df.iloc[-1]
+    def process_tick_buying(self, tick, last_row):
         self.check_order()
         if not self.buy_order and self.order:
             self.buy_order = self.order
@@ -165,8 +164,7 @@ class AutoBBTradingPlan(TradingPlan):
             self.quantity = 0
             self.status = 'searching'
 
-    def process_tick_middle(self, tick, df):
-        last_row = df.iloc[-1]
+    def process_tick_middle(self, tick, last_row):
         volok = (last_row['V'] > last_row['VMA20'])
         priceok = (tick['H'] > last_row['BBM'])
         self.log('%s(%.2f > %.2f) %s(%s > %s)' %
@@ -181,8 +179,7 @@ class AutoBBTradingPlan(TradingPlan):
             else:
                 self.sell(tick)
 
-    def process_tick_top(self, tick, df):
-        last_row = df.iloc[-1]
+    def process_tick_top(self, tick, last_row):
         volok = (last_row['V'] < last_row['VMA20'])
         priceok = (last_row['H'] > last_row['BBU'])
         self.log('%s(%.2f < %.2f) %s(%s > %s)' %
@@ -204,7 +201,7 @@ class AutoBBTradingPlan(TradingPlan):
         self.check_order()
         self.sell_order = self.order
 
-    def process_tick_selling(self, tick, ndf):
+    def process_tick_selling(self, tick, last_row):
         if self.monitor_order_completion('sell '):
             past_orders = self.exch.get_order_history(self.pair)
             if len(past_orders) == 0:
