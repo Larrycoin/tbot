@@ -59,18 +59,7 @@ class AutoBBTradingPlan(TradingPlan):
         # reached
         self.check_stop(tick)
 
-        if self.status == 'searching':
-            self.process_tick_searching(tick, ndf)
-        elif self.status == 'recovering':
-            self.process_tick_recovering(tick, ndf)
-        elif self.status == 'buying':
-            self.process_tick_buying(tick, ndf)
-        elif self.status == 'middle':
-            self.process_tick_exit_middle(tick, ndf)
-        elif self.status == 'top':
-            self.process_tick_exit_top(tick, ndf)
-        elif self.status == 'selling':
-            self.process_selling(tick, ndf)
+        self.dispatch_tick(self.status, tick, ndf)
 
         self.log(tick, '%s %s %s-%s %.3f (%f x %s)' %
                  (self.status,
@@ -176,7 +165,7 @@ class AutoBBTradingPlan(TradingPlan):
             self.quantity = 0
             self.status = 'searching'
 
-    def process_tick_exit_middle(self, tick, df):
+    def process_tick_middle(self, tick, df):
         last_row = df.iloc[-1]
         volok = (last_row['V'] > last_row['VMA20'])
         priceok = (tick['H'] > last_row['BBM'])
@@ -192,7 +181,7 @@ class AutoBBTradingPlan(TradingPlan):
             else:
                 self.sell(tick)
 
-    def process_tick_exit_top(self, tick, df):
+    def process_tick_top(self, tick, df):
         last_row = df.iloc[-1]
         volok = (last_row['V'] < last_row['VMA20'])
         priceok = (last_row['H'] > last_row['BBU'])
@@ -215,7 +204,7 @@ class AutoBBTradingPlan(TradingPlan):
         self.check_order()
         self.sell_order = self.order
 
-    def process_selling(self, tick, ndf):
+    def process_tick_selling(self, tick, ndf):
         if self.monitor_order_completion('sell '):
             past_orders = self.exch.get_order_history(self.pair)
             if len(past_orders) == 0:

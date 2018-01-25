@@ -64,8 +64,8 @@ class TargetsTradingPlan(TradingPlan):
 
     def process_tick(self, tick):
         if self.status == 'buying':
-            return self.process_tick_bying(tick, self.stop_price,
-                                           self.quantity / self.number)
+            return self.process_tick_buying(tick, self.stop_price,
+                                            self.quantity / self.number)
         else:
             return self.process_tick_position(tick)
 

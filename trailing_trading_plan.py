@@ -109,8 +109,8 @@ class TrailingTradingPlan(TradingPlan):
 
     def process_tick(self, tick):
         if self.status == 'buying':
-            return self.process_tick_bying(tick, self.stop_price,
-                                           self.quantity / 2)
+            return self.process_tick_buying(tick, self.stop_price,
+                                            self.quantity / 2)
         else:
             return self.process_tick_position(tick)
 

@@ -152,7 +152,7 @@ class TradingPlan(object):
             print('Canceled order: %s' % self.order)
             self.order = None
 
-    def process_tick_bying(self, tick, stop, quantity):
+    def process_tick_buying(self, tick, stop, quantity):
         self.check_order()
         if (self.balance < quantity and
            not (self.order and self.order.is_buy_order())):
@@ -199,6 +199,9 @@ class TradingPlan(object):
         ohlc_dict = {'O': 'first', 'H': 'max', 'L': 'min', 'C': 'last',
                      'V': 'sum', 'BV': 'sum'}
         return self.df.resample(str(period) + 'T').apply(ohlc_dict)
+
+    def dispatch_tick(self, status, *args, **kwargs):
+        return getattr(self, 'process_tick_' + status)(*args, **kwargs)
 
 
 trading_plan_class = TradingPlan
