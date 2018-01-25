@@ -157,9 +157,9 @@ class AutoBBTradingPlan(TradingPlan):
                 self.status = 'middle'
             # safe bet for recovery mode
             self.set_stop(tick, min(last_row['BBL'], self.entry * 0.95))
-        elif self.entry < tick['L']:
+        elif self.entry < last_row['L']:
             self.log('entry %s < low %s -> canceling order' %
-                     (btc2str(self.entry), btc2str(tick['L'])))
+                     (btc2str(self.entry), btc2str(last_row['L'])))
             self.do_cancel_order()
             self.entry = None
             self.quantity = 0
