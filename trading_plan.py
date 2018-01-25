@@ -1,12 +1,18 @@
 '''
 '''
 
+from datetime import datetime
+import os
+import re
+
 import pandas as pd
 from pandas.io.json import json_normalize
 
 from bittrex_exchange import BittrexError
 from utils import btc2str
-from utils import str2btc
+
+
+ANSI_ESCAPE = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
 
 
 class TradingPlan(object):
@@ -23,8 +29,29 @@ class TradingPlan(object):
         for order in self.open_orders:
             print(order)
         self.update_position()
+        if not os.getenv('TBOT_NO_LOG'):
+            self.file_log = open('%s-%s.log' %
+                                 (self.pair,
+                                  datetime.now().strftime('%Y%m%d%H%M%S')),
+                                 'a')
+        else:
+            self.file_log = None
         self.log(None, 'Balance = %.3f Available = %.3f' % (self.balance,
                                                             self.available))
+
+    def log(self, tick, msg):
+        if tick:
+            if isinstance(tick['T'], str):
+                line = '%s %s %s' % (tick['T'][11:-3], self.pair, msg)
+            else:
+                line = '%s %s %s' % (tick['T'].strftime('%H:%M'),
+                                     self.pair, msg)
+        else:
+            line = '%s %s' % (self.pair, msg)
+        print(line)
+        if self.file_log:
+            line = ANSI_ESCAPE.sub('', line) + '\n'
+            self.file_log.write(line)
 
     def update_position(self):
         position = self.exch.get_position(self.currency)
@@ -45,15 +72,6 @@ class TradingPlan(object):
         else:
             self.order = None
         return self.open_orders
-
-    def log(self, tick, msg):
-        if tick:
-            if isinstance(tick['T'], str):
-                print('%s %s %s' % (tick['T'][11:-3], self.pair, msg))
-            else:
-                print('%s %s %s' % (tick['T'].strftime('%H:%M'), self.pair, msg))
-        else:
-            print('%s %s' % (self.pair, msg))
 
     def process_tick(self, tick):
         self.log(tick, '%s %s-%s' % (btc2str(tick['C']),
@@ -88,7 +106,8 @@ class TradingPlan(object):
             except BittrexError as error:
                 if error.args[0] == 'INSUFFICIENT_FUNDS':
                     self.update_position()
-                    self.log(None, 'Insufficient funds: available=%.3f' % self.available)
+                    self.log(None, 'Insufficient funds: available=%.3f' %
+                             self.available)
                     done -= 1
                     continue
                 else:
