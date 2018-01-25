@@ -65,7 +65,8 @@ def main_loop(exch, pair, trading_plan, ticks):
         if tick and tick != prev_tick:
             prev_tick = tick
             ticks.append(tick)
-            if not trading_plan.process_tick(copy.deepcopy(tick)):
+            trading_plan.tick = copy.deepcopy(tick)
+            if not trading_plan.process_tick():
                 break
         time.sleep(30)
 

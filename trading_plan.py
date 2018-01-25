@@ -19,6 +19,7 @@ class TradingPlan(object):
     def __init__(self, exch, name, args, buy):
         self.exch = exch
         self.name = name
+        self.tick = None
         self.buy = buy
         if not getattr(self, 'pair', False):
             self.pair = args[0]
@@ -36,16 +37,17 @@ class TradingPlan(object):
                                  'a')
         else:
             self.file_log = None
-        self.log(None, 'Balance = %.3f Available = %.3f' % (self.balance,
+        self.log('Balance = %.3f Available = %.3f' % (self.balance,
                                                             self.available))
 
-    def log(self, tick, msg):
-        if tick:
-            if isinstance(tick['T'], str):
-                line = '%s %s %s %s' % (tick['T'][:10], tick['T'][11:-3],
+    def log(self, msg):
+        if self.tick:
+            if isinstance(self.tick['T'], str):
+                line = '%s %s %s %s' % (self.tick['T'][:10],
+                                        self.tick['T'][11:-3],
                                         self.pair, msg)
             else:
-                line = '%s %s %s' % (tick['T'].strftime('%Y-%m-%d %H:%M'),
+                line = '%s %s %s' % (self.tick['T'].strftime('%Y-%m-%d %H:%M'),
                                      self.pair, msg)
         else:
             line = '%s %s' % (self.pair, msg)
@@ -74,10 +76,10 @@ class TradingPlan(object):
             self.order = None
         return self.open_orders
 
-    def process_tick(self, tick):
-        self.log(tick, '%s %s-%s' % (btc2str(tick['C']),
-                                     btc2str(tick['L']),
-                                     btc2str(tick['H'])))
+    def process_tick(self):
+        self.log('%s %s-%s' % (btc2str(self.tick['C']),
+                               btc2str(self.tick['L']),
+                               btc2str(self.tick['H'])))
         return True
 
     def sell_limit(self, quantity, limit_price):
@@ -98,7 +100,7 @@ class TradingPlan(object):
         if self.order:
             self.do_cancel_order()
         else:
-            self.log(None, 'no order to cancel')
+            self.log('no order to cancel')
         done = 10
         while done > 0:
             try:
@@ -107,7 +109,7 @@ class TradingPlan(object):
             except BittrexError as error:
                 if error.args[0] == 'INSUFFICIENT_FUNDS':
                     self.update_position()
-                    self.log(None, 'Insufficient funds: available=%.3f' %
+                    self.log('Insufficient funds: available=%.3f' %
                              self.available)
                     done -= 1
                     continue
@@ -117,28 +119,26 @@ class TradingPlan(object):
             self.sent_order = True
             self.update_open_orders()
             if self.order:
-                self.log(None, 'New order: %s' % self.order)
+                self.log('New order: %s' % self.order)
         else:
-            self.log(None, 'Giving up.')
+            self.log('Giving up.')
 
     def monitor_order_completion(self, msg):
         self.update_open_orders()
         if self.order is None:
-            self.log(None, msg + 'order completed')
+            self.log(msg + 'order completed')
             return True
         else:
-            self.log(None, msg + 'order still in place')
+            self.log(msg + 'order still in place')
             return False
 
     def do_buy_order(self, stop, price, limit_range=0.09):
         if self.order:
-            self.log(None,
-                     'There is already an order. Aborting.')
+            self.log('There is already an order. Aborting.')
             print(self.order)
             return False
         if self.balance > 0:
-            self.log(None,
-                     'There is already a position on %s (%.3f). Not buying.' %
+            self.log('There is already a position on %s (%.3f). Not buying.' %
                      (self.currency, self.balance))
             return False
         else:
@@ -157,11 +157,11 @@ class TradingPlan(object):
         self.check_order()
         if (self.balance < quantity and
            not (self.order and self.order.is_buy_order())):
-            self.log(tick, 'Waiting for the buy order to become visible')
+            self.log('Waiting for the buy order to become visible')
             self.update_open_orders()
         else:
             if tick['L'] < stop:
-                self.log(tick, 'Trade invalidated (low price %.8f < %.8f), '
+                self.log('Trade invalidated (low price %.8f < %.8f), '
                          'cancelling order' %
                          (tick['L'], self.stop_price))
                 self.do_cancel_order()
@@ -173,7 +173,7 @@ class TradingPlan(object):
                     self.order = None
                     self.sent_order = False
             else:
-                self.log(tick, 'Not the correct balance: %.3f instead of '
+                self.log('Not the correct balance: %.3f instead of '
                          'more than %.3f' %
                          (self.balance, quantity))
         return True

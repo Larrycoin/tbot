@@ -114,7 +114,8 @@ def main():
 
     for tick in data['candles'][20:]:
         exch.candles.append(tick)
-        if not trading_plan.process_tick(tick):
+        trading_plan.tick = tick
+        if not trading_plan.process_tick():
             break
 
 

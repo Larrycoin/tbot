@@ -84,11 +84,11 @@ class TrailingTradingPlan(TradingPlan):
         self.df = None
         self.period = args.period
         self.range = args.range
+        self.tick = None
 
         if args.quantity == 'ALL':
             if self.balance == 0:
-                self.log(None,
-                         'ALL specified and no existing position. Aborting.')
+                self.log('ALL specified and no existing position. Aborting.')
                 sys.exit(1)
             self.quantity = self.balance
         else:
@@ -100,19 +100,21 @@ class TrailingTradingPlan(TradingPlan):
               '  trailing=%s period=%d range=%f buy=%s' %
               (self.name, self.pair, btc2str(self.stop_price),
                btc2str(self.entry_price), btc2str(self.target_price),
-               self.quantity, self.trailing, self.period, self.range, self.buy))
+               self.quantity, self.trailing, self.period, self.range,
+               self.buy))
 
         if self.buy:
-            if not self.do_buy_order(self.stop_price, self.entry_price, self.range):
+            if not self.do_buy_order(self.stop_price, self.entry_price,
+                                     self.range):
                 sys.exit(1)
         self.status = 'buying'
 
-    def process_tick(self, tick):
+    def process_tick(self):
         if self.status == 'buying':
-            return self.process_tick_buying(tick, self.stop_price,
+            return self.process_tick_buying(self.tick, self.stop_price,
                                             self.quantity / 2)
         else:
-            return self.process_tick_position(tick)
+            return self.process_tick_position(self.tick)
 
     def process_tick_position(self, tick):
         self.check_order()
@@ -144,7 +146,7 @@ class TrailingTradingPlan(TradingPlan):
                 trail_price = self.compute_stop()
 
                 if trail_price != self.trail_price:
-                    self.log(tick, 'new trailing stop %s (prev %s) (period %d mn)' %
+                    self.log('new trailing stop %s (prev %s) (period %d mn)' %
                              (btc2str(trail_price), btc2str(self.trail_price),
                               self.period))
                     self.trail_price = trail_price
@@ -152,7 +154,7 @@ class TrailingTradingPlan(TradingPlan):
             elif self.status != 'up':
                 self.sell_limit(self.quantity / 2, self.target_price)
                 self.status = 'up'
-        self.log(tick, '%s %s %s-%s' %
+        self.log('%s %s %s-%s' %
                  (self.status2str(),
                   btc2str(tick['C']),
                   btc2str(tick['L']),
@@ -186,7 +188,7 @@ class TrailingTradingPlan(TradingPlan):
                 break
             else:
                 period = period // 2
-                self.log(None, 'Downsampling to %d mn risk=%.8f size=%.8f' %
+                self.log('Downsampling to %d mn risk=%.8f size=%.8f' %
                          (period, risk, last_row['H'] - last_row['L']))
             if period <= 15:
                 break

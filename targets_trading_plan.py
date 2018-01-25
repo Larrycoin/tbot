@@ -33,21 +33,18 @@ class TargetsTradingPlan(TradingPlan):
             self.entry_price = reached[-1]
         if args[1] == 'ALL':
             if self.balance == 0:
-                self.log(None,
-                         'ALL specified and no existing position. Aborting.')
+                self.log('ALL specified and no existing position. Aborting.')
                 sys.exit(1)
             self.quantity = self.balance
         else:
             self.quantity = float(args[1])
 
-        self.log(None,
-                 '%s %s stop=%s entry=%s quantity=%.3f buy=%s' %
+        self.log('%s %s stop=%s entry=%s quantity=%.3f buy=%s' %
                  (self.name, self.pair, btc2str(self.stop_price),
                   btc2str(self.entry_price),
                   self.quantity, self.buy))
 
-        self.log(None,
-                 '%d targets: %s' % (self.number,
+        self.log('%d targets: %s' % (self.number,
                                      ' '.join([btc2str(t) if t else 'reached'
                                                for t in self.targets])))
 
@@ -58,16 +55,16 @@ class TargetsTradingPlan(TradingPlan):
         else:
             self.status = 'unknown'
             for order in self.update_open_orders():
-                self.log(None, 'Canceling %s' % order)
+                self.log('Canceling %s' % order)
                 self.exch.cancel_order(order)
             self.order = None
 
-    def process_tick(self, tick):
+    def process_tick(self):
         if self.status == 'buying':
-            return self.process_tick_buying(tick, self.stop_price,
+            return self.process_tick_buying(self.tick, self.stop_price,
                                             self.quantity / self.number)
         else:
-            return self.process_tick_position(tick)
+            return self.process_tick_position(self.tick)
 
     def process_tick_position(self, tick):
         self.check_order()
@@ -78,7 +75,7 @@ class TargetsTradingPlan(TradingPlan):
                 return False
             elif self.status != 'down':
                 for order in self.update_open_orders():
-                    self.log(tick, 'Canceling %s' % order)
+                    self.log('Canceling %s' % order)
                     self.exch.cancel_order(order)
                 if len(self.update_open_orders()) != 0:
                     return True
@@ -94,12 +91,12 @@ class TargetsTradingPlan(TradingPlan):
             elif self.status != 'up':
                 for limit in self.targets[:-1]:
                     if limit:
-                        self.log(tick, 'Limit order %.3f @ %s' %
+                        self.log('Limit order %.3f @ %s' %
                                  (self.quantity / self.number, btc2str(limit)))
                         self.sell_limit(self.quantity / self.number, limit)
                         self.order = None
                 if self.targets[-1]:
-                    self.log(tick, 'Limit order %.3f @ %s' %
+                    self.log('Limit order %.3f @ %s' %
                              (self.quantity - (self.quantity *
                                                (self.number - 1)),
                               btc2str(self.targets[-1])))
@@ -113,13 +110,13 @@ class TargetsTradingPlan(TradingPlan):
                     if self.targets[idx] and tick['H'] >= self.targets[idx]:
                         self.stop_price = self.stop_entry[self.targets[idx]]
                         self.entry_price = self.targets[idx]
-                        self.log(tick, 'target %d reached (%s). '
+                        self.log('target %d reached (%s). '
                                  'new stop=%s new entry=%s' %
                                  (idx + 1, btc2str(self.targets[idx]),
                                   btc2str(self.stop_price),
                                   btc2str(self.entry_price)))
                         self.targets[idx] = None
-        self.log(tick, '%s %s %s-%s' % (self.status,
+        self.log('%s %s %s-%s' % (self.status,
                                         btc2str(tick['C']),
                                         btc2str(tick['L']),
                                         btc2str(tick['H'])))
