@@ -102,15 +102,15 @@ class AutoBBTradingPlan(TradingPlan):
         past_orders = self.exch.get_order_history(self.pair)
         for order in past_orders:
             if order.is_buy_order():
-                self.buy_order = order
+                buy_order = order
                 break
         else:
             self.log('No buy order. Aborting.')
             sys.exit(1)
-        self.log('Recovered order %s' % self.buy_order)
-        if self.balance < self.buy_order.data['Quantity']:
+        self.log('Recovered order %s' % buy_order)
+        if self.balance < buy_order.data['Quantity']:
             self.log('Invalid balance %s < %s. Aborting' %
-                     (self.balance, self.buy_order.data['Quantity']))
+                     (self.balance, buy_order.data['Quantity']))
             sys.exit(1)
         self.status = 'buying'
 
@@ -132,20 +132,19 @@ class AutoBBTradingPlan(TradingPlan):
             self.send_order(self.exch.buy_limit,
                             self.pair, self.quantity,
                             self.entry)
-            self.check_order()
-            self.buy_order = self.order
             self.log('buying %f @ %s' %
                      (self.quantity, btc2str(self.entry)))
 
     def process_tick_buying(self, tick, last_row):
-        self.check_order()
-        if not self.buy_order and self.order:
-            self.buy_order = self.order
         if self.monitor_order_completion('buy '):
-            self.exch.update_order(self.buy_order)
-            self.entry = self.buy_order.data['PricePerUnit']
-            self.quantity = self.buy_order.data['Quantity']
-            self.cost = self.buy_order.data.get('Commission', 0)
+            past_orders = self.exch.get_order_history(self.pair)
+            if len(past_orders) == 0:
+                self.log('Unable to find buy order. Aborting.')
+                sys.exit(1)
+            buy_order = past_orders[0]
+            self.entry = buy_order.data['PricePerUnit']
+            self.quantity = buy_order.data['Quantity']
+            self.cost = buy_order.data.get('Commission', 0)
             self.log("bought %f @ %s Fees %s" %
                      (self.quantity, btc2str(self.entry),
                       btc2str(self.cost)))
