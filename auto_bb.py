@@ -114,9 +114,17 @@ class AutoBBTradingPlan(TradingPlan):
             sys.exit(1)
         self.status = 'buying'
 
+    @staticmethod
+    def selling_pressure(row):
+        if row['H'] == row['L']:
+            return 0
+        else:
+            return (row['H'] - row['C']) / (row['H'] - row['L'])
+
     def process_tick_searching(self, tick, last_row):
         volok = (last_row['V'] < last_row['VMA20'])
-        priceok = (tick['L'] < last_row['BBL'])
+        priceok = (tick['L'] < (last_row['BBL'] *
+                                self.selling_pressure(last_row)))
         bbok = (last_row['BBW'] > self.percent)
         self.log('%s(%.2f < %.2f) %s(%s < %s) %s(%.2f > %.2f)' %
                  (green('volok') if volok else red('volko'),
