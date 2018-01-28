@@ -24,9 +24,7 @@ class FakeExchange(object):
         return {'Balance': self.balance}
 
     def get_open_orders(self, pair):
-        order = self.order
-        self.order = None
-        return [order]
+        return [self.order]
 
     def sell_limit(self, pair, quantity, limit_price):
         print('SELL LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
@@ -46,6 +44,18 @@ class FakeExchange(object):
 
     def sell_stop(self, pair, quantity, stop_price):
         print('SELL STP %.3f %s %s' % (quantity, pair, btc2str(stop_price)))
+        self.order = BittrexOrder({'OrderId': '1',
+                                   'Quantity': quantity,
+                                   'Limit': stop_price / 2,
+                                   'Commission':
+                                   stop_price * quantity * self.percent_fee,
+                                   'OrderType': 'LIMIT_SELL',
+                                   'IsConditional': True,
+                                   'Condition': 'LESSTHAN',
+                                   'ConditionTarget': stop_price,
+                                   'Exchange': pair,
+                                   'PricePerUnit': stop_price},
+                                  id='2')
 
     def buy_limit(self, pair, quantity, limit_price):
         print('BUY LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
@@ -59,7 +69,7 @@ class FakeExchange(object):
                                    'Condition': 'NONE',
                                    'Exchange': pair,
                                    'PricePerUnit': limit_price},
-                                  id='1')
+                                  id='3')
         self.orders.insert(0, self.order)
         return self.order
 
@@ -79,6 +89,19 @@ class FakeExchange(object):
     def cancel_order(self, order):
         self.order = None
         return self.order
+
+    def process_tick(self, tick):
+        if self.order:
+            if self.order.is_buy_order() and self.order.limit() >= tick['L']:
+                self.order = None
+            elif self.order.is_sell_order():
+                if (not self.order.data['IsConditional'] and
+                   tick['H'] > self.order.limit()):
+                    self.order.data['PricePerUnit'] = (tick['H'] + tick['L']) / 2
+                    self.order = None
+                elif (self.order.data['IsConditional'] and
+                      self.order.limit() > tick['L']):
+                    self.order = None
 
 
 def main():
@@ -114,6 +137,7 @@ def main():
 
     for tick in data['candles'][20:]:
         exch.candles.append(tick)
+        exch.process_tick(tick)
         trading_plan.tick = tick
         if not trading_plan.process_tick():
             break
