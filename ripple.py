@@ -16,14 +16,10 @@ class RippleTradingPlan(TradingPlan):
         parser.add_argument('amount',
                             help='quantity of currency to use for the trade',
                             type=float)
-        parser.add_argument('period',
-                            help='number of minutes to take decisions',
-                            type=int)
         args = parser.parse_args(arguments)
 
         self.pair = args.pair
         self.amount = args.amount
-        self.period = args.period
         self.entry = None
         self.stop = None
         self.stop_order = None
@@ -53,8 +49,8 @@ class RippleTradingPlan(TradingPlan):
         else:
             self.status = 'recovering'
 
-        self.log('%s amount=%s period=%d mn %s' %
-                 (name, btc2str(self.amount), self.period, self.status))
+        self.log('%s amount=%s %s' %
+                 (name, btc2str(self.amount), self.status))
 
     def process_tick(self):
         self.update_dataframe(self.tick)
@@ -166,6 +162,7 @@ class RippleTradingPlan(TradingPlan):
             self.quantity = 0
             self.entry = None
             self.stop = None
+            self.stop_order = True
             self.status = 'midnight'
 
 
