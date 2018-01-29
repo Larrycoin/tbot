@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import importlib
+from datetime import datetime
 import gzip
 import json
-import time
+import os
 import sys
 
 from bittrex_exchange import BittrexOrder
@@ -119,8 +119,20 @@ def main():
     else:
         trading_plan_class = load_trading_plan_class(sys.argv[1])
 
+    if os.getenv('TBOT_START_DATE'):
+        dt = datetime.strptime(os.getenv('TBOT_START_DATE'),
+                               '%Y-%m-%d %H:%M')
+        for idx in range(len(data['candles'])):
+            if datetime.strptime(data['candles'][idx]['T'],
+                                 '%Y-%m-%dT%H:%M:%S') >= dt:
+                break
+        else:
+            idx = 20
+    else:
+        idx = 20
+
     exch = FakeExchange(data['balance'], data['available'],
-                        data['candles'][:20])
+                        data['candles'][:idx])
     print(data['plan'], data['args'])
     if len(sys.argv) == 3:
         trading_plan = trading_plan_class(exch, data['plan'],
@@ -135,7 +147,7 @@ def main():
         trading_plan = trading_plan_class(exch, data['plan'],
                                           args, buy)
 
-    for tick in data['candles'][20:]:
+    for tick in data['candles'][idx:]:
         exch.candles.append(tick)
         exch.process_tick(tick)
         trading_plan.tick = tick
