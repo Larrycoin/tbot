@@ -16,7 +16,7 @@ def load_trading_plan_class(module_name):
     return module.trading_plan_class
 
 
-def main():
+def main(exch=None):
     if len(sys.argv) < 3:
         print('Usage: %s <trading plan> [-b] <pair> [<args>]' % sys.argv[0])
         sys.exit(1)
@@ -26,22 +26,17 @@ def main():
         args = sys.argv[3:]
     else:
         args = sys.argv[2:]
-    exch = BittrexExchange(True)
+    if not exch:
+        exch = BittrexExchange(True)
     trading_plan = trading_plan_class(exch, sys.argv[1], args, buy)
     ticks = exch.get_candles(trading_plan.pair, 'oneMin')
 
     try:
         main_loop(exch, trading_plan.pair, trading_plan, ticks)
     except KeyboardInterrupt:
-        try:
-            print('\nInterrupted by user')
-        except:
-            pass
+        print('\nInterrupted by user')
     except BaseException:
-        try:
-            print(traceback.format_exc())
-        except:
-            pass
+        print(traceback.format_exc())
 
     if len(ticks) > 0:
         filename = '%s-%s.trade' % (trading_plan.pair, ticks[0]['T'])
