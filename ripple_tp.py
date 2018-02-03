@@ -97,13 +97,13 @@ class RippleTradingPlan(TradingPlan):
         return False
 
     def process_tick_midnight(self, tick):
-        if tick['T'].hour == 0 and tick['T'].minute == 0:
+        if tick['T'].hour == 0:
             self.midnight_price = tick['O']
             self.log('Midnight price %s' % btc2str(self.midnight_price))
             self.status = 'nine'
 
     def process_tick_nine(self, tick):
-        if tick['T'].hour == 9 and tick['T'].minute == 0:
+        if tick['T'].hour == 9:
             if self.midnight_price > tick['C'] * 1.05:
                 self.status = 'buying'
                 self.entry = tick['C']
