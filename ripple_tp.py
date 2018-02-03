@@ -86,12 +86,11 @@ class RippleTradingPlan(TradingPlan):
             if self.order and self.order.is_buy_order():
                 self.stop_order = None
             elif self.monitor_order_completion('stop '):
-                self.compute_gains(tick, self.stop_order)
                 past_orders = self.exch.get_order_history(self.pair)
                 if len(past_orders) == 0:
                     self.log('Unable to find sell order. Aborting.')
                     sys.exit(1)
-                self.compute_gains(tick, past_orders[0])
+                self.compute_gains(past_orders[0])
                 self.stop_order = None
                 return True
         return False
@@ -104,7 +103,7 @@ class RippleTradingPlan(TradingPlan):
 
     def process_tick_nine(self, tick):
         if tick['T'].hour == 9:
-            if self.midnight_price > tick['C'] * 1.05:
+            if tick['C'] >= self.midnight_price * 1.05:
                 self.status = 'buying'
                 self.entry = tick['C']
                 self.quantity = self.amount / self.entry
@@ -114,16 +113,17 @@ class RippleTradingPlan(TradingPlan):
                 self.log('%s %f @ %s' %
                          (green('buying'), self.quantity, btc2str(self.entry)))
             else:
-                self.log('%s: %s < %s. retrying tomorrow. %s' %
+                self.log('%s: %s >= %s. retrying tomorrow. %.3f' %
                          (red('no up trend'),
-                          btc2str(self.midnight_price),
-                          btc2str(tick['C'] * 1.05),
-                          btc2str(self.amount)))
+                          btc2str(tick['C']),
+                          btc2str(self.midnight_price * 1.05),
+                          self.amount))
                 self.status = 'midnight'
 
     def process_tick_buying(self, tick):
         if tick['T'].hour == 10:
             self.do_cancel_order()
+            self.status = 'midnight'
         elif self.monitor_order_completion('buy'):
             past_orders = self.exch.get_order_history(self.pair)
             if len(past_orders) == 0:
@@ -144,26 +144,28 @@ class RippleTradingPlan(TradingPlan):
             self.status = 'selling'
 
     def process_tick_selling(self, tick):
-        if self.monitor_order_completion('sell'):
+        if self.monitor_order_completion('sell '):
             past_orders = self.exch.get_order_history(self.pair)
             if len(past_orders) == 0:
                 self.log('Unable to find sell order. Aborting.')
                 sys.exit(1)
-            order = past_orders[0]
-            price = order.data['PricePerUnit']
-            quantity = order.data['Quantity']
-            self.cost += order.data['Commission']
-            amount = price * quantity - self.cost
-            self.log('sold %f @ %s => %s %s %.2f%%' %
-                     (quantity, btc2str(price),
-                      btc2str(amount), btc2str(self.amount),
-                      (amount / self.amount - 1) * 100))
-            self.amount = amount
-            self.quantity = 0
-            self.entry = None
-            self.stop = None
-            self.stop_order = True
-            self.status = 'midnight'
+            self.compute_gains(past_orders[0])
+
+    def compute_gains(self, order):
+        price = order.data['PricePerUnit']
+        quantity = order.data['Quantity']
+        self.cost += order.data['Commission']
+        amount = price * quantity - self.cost
+        self.log('sold %f @ %s => %f %f %.2f%%' %
+                 (quantity, btc2str(price),
+                  amount, self.amount,
+                  (amount / self.amount - 1) * 100))
+        self.amount = amount
+        self.quantity = 0
+        self.entry = None
+        self.stop = None
+        self.stop_order = None
+        self.status = 'midnight'
 
 
 trading_plan_class = RippleTradingPlan
