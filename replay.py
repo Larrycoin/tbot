@@ -100,7 +100,7 @@ class FakeExchange(object):
                     self.order.data['PricePerUnit'] = (tick['H'] + tick['L']) / 2
                     self.order = None
                 elif (self.order.data['IsConditional'] and
-                      self.order.limit() > tick['L']):
+                      self.order.data['ConditionTarget'] > tick['L']):
                     self.order = None
 
 
