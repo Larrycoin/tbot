@@ -2,12 +2,20 @@
 
 import gzip
 import json
+import os
 import sys
+
+from bittrex_exchange import BittrexExchange
 
 
 def main(args):
-    with open(args[0]) as json_file:
-        ticks = json.loads(json_file.read(-1))
+    if os.path.isfile(args[0]):
+        with open(args[0]) as json_file:
+            ticks = json.loads(json_file.read(-1))
+    else:
+        exch = BittrexExchange(False)
+        ticks = exch.get_candles(args[0], 'oneMin')
+
     with gzip.open(args[1], 'w') as fout:
         data = {'candles': ticks,
                 'plan': args[2],
@@ -23,7 +31,7 @@ def main(args):
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
-        print('Usage: %s <json filename> <trade filename> '
+        print('Usage: %s <json filename|pair name> <trade filename> '
               '<plan> <pair> [<args>...]' % sys.argv[0])
         sys.exit(1)
     main(sys.argv[1:])
