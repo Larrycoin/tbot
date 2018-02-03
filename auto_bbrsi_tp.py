@@ -5,10 +5,7 @@ import argparse
 import sys
 
 from trading_plan import TradingPlan
-from utils import (btc2str, BB, MA, RSI, red, green)
-
-
-TEN8 = 100000000
+from utils import (btc2str, ATR_STP, BB, MA, RSI, red, green)
 
 
 class AutoBBRsiTradingPlan(TradingPlan):
@@ -37,8 +34,8 @@ class AutoBBRsiTradingPlan(TradingPlan):
         else:
             self.status = 'recovering'
         self.entry = None
-        self.stop = None
-        self.stop_order = None
+        self.virtual_stop = None
+        self.physical_stop = None
         self.cost = 0
         self.quantity = 0
 
@@ -55,6 +52,7 @@ class AutoBBRsiTradingPlan(TradingPlan):
         BB(ndf)
         MA(ndf, 20, 'V', 'VMA20')
         RSI(ndf)
+        ATR_STP(ndf)
         last_row = ndf.iloc[-2]
 
         # Put a stop if needed but let the trade logic continue if it is not
@@ -63,39 +61,51 @@ class AutoBBRsiTradingPlan(TradingPlan):
 
         self.dispatch_tick(self.status, self.tick, last_row)
 
-        self.log('%s %s %s-%s %.3f (%f x %s)' %
+        if self.entry:
+            percent = ((self.tick['C'] / self.entry) - 1) * 100
+        else:
+            percent = 0
+
+        self.log('%s %s %s-%s %.3f (%f x %s) vstop=%s pstop=%s %.2f%%' %
                  (self.status,
                   btc2str(self.tick['C']),
                   btc2str(self.tick['L']),
                   btc2str(self.tick['H']),
-                  self.amount, self.quantity, btc2str(self.entry)))
+                  self.amount, self.quantity, btc2str(self.entry),
+                  btc2str(self.virtual_stop), btc2str(self.physical_stop),
+                  percent))
         del ndf
         return(self.amount > 0)
 
     def check_stop(self, tick):
-        if self.stop:
-            if tick['L'] < self.stop:
+        if self.virtual_stop:
+            if tick['L'] < self.virtual_stop:
                 stop = tick['L'] * 0.99
-                self.log('stop reached. Putting a physical stop @ %s' %
-                         btc2str(stop))
-                self.sell_stop(self.quantity, stop)
-                self.stop = None
-                self.check_order()
-                self.stop_order = self.order or True
+                if not self.physical_stop or stop > self.physical_stop:
+                    self.log('Virtual stop reached. '
+                             'Putting a physical stop @ %s' %
+                             btc2str(stop))
+                    self.sell_stop(self.quantity, stop)
+                    self.physical_stop = stop
+                    self.check_order()
+                else:
+                    self.log('Virtual stop reached. '
+                             'Not lowering physical stop %s < %s' %
+                             (btc2str(stop), btc2str(self.physical_stop)))
                 return True
-        if self.stop_order:
-            self.check_order()
-            if self.stop_order is True:
-                self.stop_order = self.order or True
-            if self.stop_order is not True:
-                # order is no longer open
-                if not self.order:
-                    self.exch.update_order(self.stop_order)
-                    self.compute_gains(tick, self.stop_order)
-                    self.stop_order = None
+        if self.physical_stop:
+            if self.monitor_order_completion('stop '):
+                past_orders = self.exch.get_order_history(self.pair)
+                if len(past_orders) == 0:
+                    self.log('Unable to find stop order. Aborting.')
+                    sys.exit(1)
+                stop_order = past_orders[0]
+                self.compute_gains(tick, stop_order)
+                self.physical_stop = None
                 # buy order has been sent
-                elif self.order.is_buy_order():
-                    self.stop_order = None
+                return True
+        if self.order and self.order.is_buy_order():
+            self.physical_stop = None
             return True
         return False
 
@@ -160,7 +170,7 @@ class AutoBBRsiTradingPlan(TradingPlan):
                       btc2str(self.cost)))
             self.status = 'rsi'
             # safe bet for recovery mode
-            self.set_stop(tick, min(last_row['BBL'], self.entry * 0.95))
+            self.set_stop(last_row['ATR_STP'])
         elif self.entry < last_row['L']:
             self.log('entry %s < low %s -> canceling order' %
                      (btc2str(self.entry), btc2str(last_row['L'])))
@@ -176,6 +186,8 @@ class AutoBBRsiTradingPlan(TradingPlan):
                   last_row['RSI'], 70))
         if rsiok:
             self.sell(tick)
+        else:
+            self.set_stop(last_row['ATR_STP'])
 
     def sell(self, tick):
         self.status = 'selling'
@@ -205,12 +217,13 @@ class AutoBBRsiTradingPlan(TradingPlan):
         self.amount = amount
         self.quantity = 0
         self.entry = None
-        self.stop = None
+        self.virtual_stop = None
         self.status = 'searching'
 
-    def set_stop(self, tick, value):
-        self.stop = value
-        self.log('Setting virtual stop to %s' % btc2str(value))
+    def set_stop(self, value):
+        if not self.virtual_stop or self.virtual_stop != value:
+            self.virtual_stop = value
+            self.log('Setting virtual stop to %s' % btc2str(value))
 
 
 trading_plan_class = AutoBBRsiTradingPlan
