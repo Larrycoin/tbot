@@ -81,18 +81,17 @@ class AutoBBRsiTradingPlan(TradingPlan):
         if self.virtual_stop:
             if tick['L'] < self.virtual_stop:
                 stop = tick['L'] * 0.99
+                self.virtual_stop = None
                 if not self.physical_stop or stop > self.physical_stop:
                     self.log('Virtual stop reached. '
                              'Putting a physical stop @ %s' %
                              btc2str(stop))
                     self.sell_stop(self.quantity, stop)
                     self.physical_stop = stop
-                    self.check_order()
                 else:
                     self.log('Virtual stop reached. '
                              'Not lowering physical stop %s < %s' %
                              (btc2str(stop), btc2str(self.physical_stop)))
-                return True
         if self.physical_stop:
             if self.monitor_order_completion('stop '):
                 past_orders = self.exch.get_order_history(self.pair)
@@ -210,10 +209,11 @@ class AutoBBRsiTradingPlan(TradingPlan):
         quantity = order.data['Quantity']
         self.cost += order.data['Commission']
         amount = price * quantity - self.cost
-        self.log('sold %f @ %s => %f %f %.2f%%' %
+        self.log('sold %f @ %s => %f %f %.2f%% (buy price=%s)' %
                  (quantity, btc2str(price),
                   amount, self.amount,
-                  (amount / self.amount - 1) * 100))
+                  (amount / self.amount - 1) * 100,
+                  btc2str(self.entry)))
         self.amount = amount
         self.quantity = 0
         self.entry = None
