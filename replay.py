@@ -19,6 +19,11 @@ class FakeExchange(object):
         self.order = None
         self.orders = []
         self.percent_fee = 0.0025
+        self.logger = None
+
+    def log(self, msg):
+        if self.logger:
+            self.logger(msg)
 
     def get_position(self, pair):
         return {'Balance': self.balance}
@@ -27,7 +32,8 @@ class FakeExchange(object):
         return [self.order]
 
     def sell_limit(self, pair, quantity, limit_price):
-        print('SELL LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
+        self.log('SELL LMT %.3f %s %s' % (quantity, pair,
+                                          btc2str(limit_price)))
         self.order = BittrexOrder({'OrderId': '1',
                                    'Quantity': quantity,
                                    'Limit': limit_price,
@@ -43,7 +49,7 @@ class FakeExchange(object):
         return self.order
 
     def sell_stop(self, pair, quantity, stop_price):
-        print('SELL STP %.3f %s %s' % (quantity, pair, btc2str(stop_price)))
+        self.log('SELL STP %.3f %s %s' % (quantity, pair, btc2str(stop_price)))
         self.order = BittrexOrder({'OrderId': '1',
                                    'Quantity': quantity,
                                    'Limit': stop_price / 2,
@@ -56,9 +62,11 @@ class FakeExchange(object):
                                    'Exchange': pair,
                                    'PricePerUnit': stop_price},
                                   id='2')
+        self.orders.insert(0, self.order)
+        return self.order
 
     def buy_limit(self, pair, quantity, limit_price):
-        print('BUY LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
+        self.log('BUY LMT %.3f %s %s' % (quantity, pair, btc2str(limit_price)))
         self.order = BittrexOrder({'OrderId': '1',
                                    'Quantity': quantity,
                                    'Limit': limit_price,
@@ -74,8 +82,8 @@ class FakeExchange(object):
         return self.order
 
     def buy_limit_range(self, pair, quantity, entry, val_max):
-        print('BUY RNG %.3f %s %s-%s' % (quantity, pair,
-                                         btc2str(entry), btc2str(val_max)))
+        self.log('BUY RNG %.3f %s %s-%s' % (quantity, pair,
+                                            btc2str(entry), btc2str(val_max)))
 
     def get_candles(self, pair, duration):
         return self.candles
@@ -92,15 +100,23 @@ class FakeExchange(object):
 
     def process_tick(self, tick):
         if self.order:
+            self.log('ORDER %s' % self.order)
             if self.order.is_buy_order() and self.order.limit() >= tick['L']:
+                self.log('BOUGHT')
                 self.order = None
             elif self.order.is_sell_order():
                 if (not self.order.data['IsConditional'] and
                    tick['H'] > self.order.limit()):
-                    self.order.data['PricePerUnit'] = (tick['H'] + tick['L']) / 2
+                    self.log('SOLD LIMIT')
+                    self.order.data['PricePerUnit'] = (
+                        (tick['H'] + tick['L']) / 2)
                     self.order = None
                 elif (self.order.data['IsConditional'] and
                       self.order.data['ConditionTarget'] > tick['L']):
+                    self.order.data['PricePerUnit'] = (
+                        (self.order.data['ConditionTarget'] + tick['L']) / 2)
+                    self.log('STOPPED @ %s' %
+                             btc2str(self.order.data['PricePerUnit']))
                     self.order = None
 
 
@@ -146,6 +162,8 @@ def main():
             args = sys.argv[3:]
         trading_plan = trading_plan_class(exch, data['plan'],
                                           args, buy)
+    if os.getenv('TBOT_DEBUG_REPLAY'):
+        exch.logger = trading_plan.log
 
     for tick in data['candles'][idx:]:
         exch.candles.append(tick)
