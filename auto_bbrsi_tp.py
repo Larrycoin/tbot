@@ -132,17 +132,32 @@ class AutoBBRsiTradingPlan(TradingPlan):
             return (row['H'] - row['C']) / (row['H'] - row['L'])
 
     def process_tick_searching(self, tick, last_row):
-        rsiok = (last_row['RSI'] < 30)
+        RSI_THRESHOLD = 30
+        CORPSE_THRESHOLD = 0.2
+        rsiok = (last_row['RSI'] <= RSI_THRESHOLD)
         priceok = (tick['L'] < last_row['BBL'])
-        bbok = (last_row['BBW'] > self.percent)
-        self.log('%s(%s < %s) %s(%.1f < %f) %s(%.2f > %.2f)' %
+        bbok = (last_row['BBW'] >= self.percent)
+        volok = (last_row['V'] < last_row['VMA20'])
+        if last_row['H'] == last_row['C']:
+            candle_corpse = 1
+        else:
+            candle_corpse = ((last_row['H'] - min(last_row['C'],
+                                                  last_row['O'])) /
+                             (last_row['H'] - last_row['L']))
+        candleok = (candle_corpse <= CORPSE_THRESHOLD) or volok
+        self.log('%s(%s <= %s) %s(%.1f < %f) %s(%.2f >= %.2f) '
+                 '%s(%.2f <= %.2f or %s %.2f < %.2f)' %
                  (green('priceok') if priceok else red('priceko'),
                   btc2str(tick['L']), btc2str(last_row['BBL']),
                   green('rsiok') if rsiok else red('rsiko'),
-                  last_row['RSI'], 30,
+                  last_row['RSI'], RSI_THRESHOLD,
                   green('bbok') if bbok else red('bbko'),
-                  last_row['BBW'], self.percent))
-        if rsiok and priceok and bbok:
+                  last_row['BBW'], self.percent,
+                  green('candleok') if candleok else red('candleko'),
+                  candle_corpse, CORPSE_THRESHOLD,
+                  green('volok') if volok else red('volko'),
+                  last_row['V'], last_row['VMA20']))
+        if rsiok and priceok and bbok and candleok:
             self.status = 'buying'
             self.entry = last_row['L']
             self.quantity = self.amount / self.entry
